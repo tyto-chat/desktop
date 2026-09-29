@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { SecretStore, type SecretCrypto } from "../src/main/secrets";
+import { bootMode, SecretStore, type SecretCrypto } from "../src/main/secrets";
 
 const fakeCrypto: SecretCrypto = {
   isEncryptionAvailable: () => true,
@@ -94,5 +94,15 @@ describe("SecretStore", () => {
     const store = new SecretStore(dir, { ...fakeCrypto, isEncryptionAvailable: () => false });
     await expect(store.set("a", "plain")).rejects.toThrow(/encryption/i);
     expect(await store.get("a")).toBeNull();
+  });
+});
+
+describe("bootMode", () => {
+  it("starts the app when the OS can encrypt", () => {
+    expect(bootMode(true)).toBe("app");
+  });
+
+  it("shows the keychain error instead of the app when it cannot", () => {
+    expect(bootMode(false)).toBe("keychain-error");
   });
 });
