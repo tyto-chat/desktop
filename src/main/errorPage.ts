@@ -15,7 +15,7 @@ export function keychainErrorHtml(docsUrl: string): string {
 <head>
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'">
-<title>tyto</title>
+<title>Tyto</title>
 <style>
   body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: #0f1117;
     color: #e6e8ee; font: 15px/1.5 system-ui, sans-serif; }
@@ -27,10 +27,10 @@ export function keychainErrorHtml(docsUrl: string): string {
 </head>
 <body>
 <main>
-  <h1>tyto can't reach your system keychain</h1>
-  <p>tyto stores your sign-in details encrypted with a key kept by your operating system. No keychain
-  service is available, so tyto will not start rather than store them unprotected.</p>
-  <p>On Linux, install and unlock a secret service such as GNOME Keyring or KWallet, then start tyto
+  <h1>Tyto can't reach your system keychain</h1>
+  <p>Tyto stores your sign-in details encrypted with a key kept by your operating system. No keychain
+  service is available, so Tyto will not start rather than store them unprotected.</p>
+  <p>On Linux, install and unlock a secret service such as GNOME Keyring or KWallet, then start Tyto
   again.</p>
   <p><a href="${href}">${href}</a></p>
 </main>

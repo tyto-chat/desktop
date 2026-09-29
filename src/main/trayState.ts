@@ -53,7 +53,7 @@ export const TRAY_LABEL_KEYS = [
 ] as const satisfies readonly (keyof TrayLabels)[];
 
 export const ENGLISH_TRAY_LABELS: TrayLabels = {
-  open: "Open tyto",
+  open: "Open Tyto",
   mute: "Mute",
   unmute: "Unmute",
   leaveCall: "Leave call",
@@ -72,7 +72,7 @@ export const ENGLISH_TRAY_LABELS: TrayLabels = {
   quit: "Quit",
 };
 
-const APP_NAME = "tyto";
+const APP_NAME = "Tyto";
 const MAX_LABEL_LENGTH = 120;
 
 const PRESENCE_LABEL_KEYS: readonly [BridgePresence, keyof TrayLabels][] = [

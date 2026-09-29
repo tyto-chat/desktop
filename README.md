@@ -1,8 +1,8 @@
-# tyto desktop
+# tyto.chat desktop
 
 The desktop app for [tyto.chat](https://tyto.chat), for macOS, Windows and Linux.
 
-It is a thin Electron shell around the tyto web client built in desktop mode. The shell adds what a
+It is a thin Electron shell around the Tyto web client built in desktop mode. The shell adds what a
 browser tab cannot: credentials kept in the operating system keychain, a tray icon, native
 notifications, `tyto://` links and automatic updates. All chat features live in the
 [client](https://github.com/tyto-chat/client).

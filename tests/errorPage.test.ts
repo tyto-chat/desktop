@@ -19,4 +19,11 @@ describe("keychainErrorHtml", () => {
     expect(html).not.toContain("<script>alert(1)</script>");
     expect(html).toContain("&quot;&gt;&lt;script&gt;");
   });
+
+  it("uses the product's short name, capitalised", () => {
+    const html = keychainErrorHtml(KEYCHAIN_DOCS_URL);
+    expect(html).toContain("<title>Tyto</title>");
+    expect(html).toContain("Tyto can't reach your system keychain");
+    expect(html.replaceAll(KEYCHAIN_DOCS_URL, "")).not.toMatch(/\btyto\b/);
+  });
 });
