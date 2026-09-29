@@ -42,6 +42,7 @@ export interface TrayLabels {
   snooze: string;
   snoozeMinutes: (minutes: number) => string;
   snoozeIndefinitely: string;
+  snoozeOff: string;
   presence: string;
   presenceValues: Record<BridgePresence, string>;
   startOnBoot: string;
@@ -61,6 +62,7 @@ export const TRAY_LABELS: TrayLabels = {
   snooze: "Snooze notifications",
   snoozeMinutes: (minutes) => (minutes === 60 ? "For 1 hour" : `For ${minutes} minutes`),
   snoozeIndefinitely: "Until I turn them back on",
+  snoozeOff: "Turn notifications back on",
   presence: "Presence",
   presenceValues: {
     online: "Online",
@@ -125,6 +127,7 @@ export function buildTrayMenu(
           command(labels.snoozeMinutes(minutes), { type: "snooze", minutes }),
         ),
         command(labels.snoozeIndefinitely, { type: "snooze", minutes: null }),
+        command(labels.snoozeOff, { type: "snooze", minutes: 0 }),
       ],
     },
     {

@@ -78,7 +78,9 @@ describe("buildTrayMenu", () => {
       { type: "command", command: { type: "snooze", minutes: 30 } },
       { type: "command", command: { type: "snooze", minutes: 60 } },
       { type: "command", command: { type: "snooze", minutes: null } },
+      { type: "command", command: { type: "snooze", minutes: 0 } },
     ]);
+    expect(snooze.submenu!.at(-1)!.label).toBe("Turn notifications back on");
   });
 
   it("offers the four presence states", () => {
