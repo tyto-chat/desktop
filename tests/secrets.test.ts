@@ -99,10 +99,32 @@ describe("SecretStore", () => {
 
 describe("bootMode", () => {
   it("starts the app when the OS can encrypt", () => {
-    expect(bootMode(true)).toBe("app");
+    expect(bootMode({ encryptionAvailable: true, platform: "darwin", backend: null })).toBe("app");
+    expect(bootMode({ encryptionAvailable: true, platform: "win32", backend: null })).toBe("app");
   });
 
-  it("shows the keychain error instead of the app when it cannot", () => {
-    expect(bootMode(false)).toBe("keychain-error");
+  it.each(["gnome_libsecret", "kwallet", "kwallet5", "kwallet6"])(
+    "starts the app on linux with the %s backend",
+    (backend) => {
+      expect(bootMode({ encryptionAvailable: true, platform: "linux", backend })).toBe("app");
+    },
+  );
+
+  it("shows the keychain error when the OS cannot encrypt", () => {
+    expect(bootMode({ encryptionAvailable: false, platform: "linux", backend: "unknown" })).toBe(
+      "keychain-error",
+    );
+    expect(bootMode({ encryptionAvailable: false, platform: "darwin", backend: null })).toBe(
+      "keychain-error",
+    );
   });
+
+  it.each(["basic_text", "unknown", null])(
+    "refuses the linux %s backend even when encryption claims to be available",
+    (backend) => {
+      expect(bootMode({ encryptionAvailable: true, platform: "linux", backend })).toBe(
+        "keychain-error",
+      );
+    },
+  );
 });

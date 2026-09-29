@@ -2,7 +2,7 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-REF="$(tr -d '[:space:]' < "$ROOT/client-ref")"
+REF="${TYTO_CLIENT_REF:-$(tr -d '[:space:]' < "$ROOT/client-ref")}"
 REPO="${TYTO_CLIENT_REPO:-https://github.com/tyto-chat/client.git}"
 SRC="${TYTO_CLIENT_DIR:-}"
 WORK="$ROOT/.client-build"

@@ -9,8 +9,20 @@ export interface SecretCrypto {
 
 export type BootMode = "app" | "keychain-error";
 
-export function bootMode(encryptionAvailable: boolean): BootMode {
-  return encryptionAvailable ? "app" : "keychain-error";
+export interface KeychainStatus {
+  encryptionAvailable: boolean;
+  platform: string;
+  backend: string | null;
+}
+
+const WEAK_LINUX_BACKENDS: readonly (string | null)[] = ["basic_text", "unknown", null];
+
+export function bootMode(status: KeychainStatus): BootMode {
+  if (!status.encryptionAvailable) return "keychain-error";
+  if (status.platform === "linux" && WEAK_LINUX_BACKENDS.includes(status.backend)) {
+    return "keychain-error";
+  }
+  return "app";
 }
 
 export class SecretStore {

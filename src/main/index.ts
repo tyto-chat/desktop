@@ -133,7 +133,13 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   void app.whenReady().then(() => {
-    if (bootMode(safeStorage.isEncryptionAvailable()) === "keychain-error") {
+    const keychain = {
+      encryptionAvailable: safeStorage.isEncryptionAvailable(),
+      platform: process.platform,
+      backend: process.platform === "linux" ? safeStorage.getSelectedStorageBackend() : null,
+    };
+    if (bootMode(keychain) === "keychain-error") {
+      log(`keychain unavailable (backend: ${keychain.backend ?? "none"})`);
       createKeychainErrorWindow();
       return;
     }
