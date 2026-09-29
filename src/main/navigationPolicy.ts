@@ -29,7 +29,7 @@ export function contentSecurityPolicy(): string {
     "font-src 'self' data:",
     "connect-src 'self' https: wss:",
     "worker-src 'self' blob:",
-    "frame-src 'none'",
+    "frame-src https://www.youtube.com",
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",

@@ -5,27 +5,35 @@ on:
     tags: ["v*"]
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         include:
           - os: macos-latest
+            platform: mac
             targets: --mac
           - os: windows-latest
+            platform: win
             targets: --win
           - os: ubuntu-latest
+            platform: linux
             targets: --linux
     runs-on: ${{ matrix.os }}
     timeout-minutes: 60
     defaults:
       run:
         shell: bash
+    outputs:
+      unsigned-mac: ${{ steps.signing.outputs.unsigned-mac }}
+      unsigned-win: ${{ steps.signing.outputs.unsigned-win }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
 
       - uses: actions/setup-node@v4
         with:
@@ -43,6 +51,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint, typecheck, format
+        run: npm run lint && npm run typecheck && npm run format:check
+
       - name: Unit tests
         run: npm test
 
@@ -52,28 +63,32 @@ jobs:
       - name: Build the shell
         run: npm run build
 
+      - name: Headless smoke launch
+        if: matrix.platform == 'linux'
+        run: |
+          sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
+          TYTO_ALLOW_INSECURE_KEYCHAIN=1 npx electron scripts/smoke-main.js
+
       - name: Decide whether this build is signed
         id: signing
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          PLATFORM: ${{ matrix.platform }}
         run: |
-          SIGNED=false
-          case "${{ matrix.os }}" in
-            macos-latest) [ -n "$CSC_LINK" ] && SIGNED=true ;;
-            windows-latest) [ -n "$WIN_CSC_LINK" ] && SIGNED=true ;;
-            ubuntu-latest) SIGNED=true ;;
-          esac
+          SIGNED=true
+          if [ "$PLATFORM" = "mac" ] && [ -z "$CSC_LINK" ]; then SIGNED=false; fi
+          if [ "$PLATFORM" = "win" ] && [ -z "$WIN_CSC_LINK" ]; then SIGNED=false; fi
           echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
           if [ "$SIGNED" = "false" ]; then
-            echo "::warning::No signing certificate for ${{ matrix.os }}. This build is UNSIGNED and is published as a prerelease."
+            echo "unsigned-$PLATFORM=true" >> "$GITHUB_OUTPUT"
+            echo "::warning::No signing certificate for $PLATFORM. This installer is UNSIGNED."
           fi
 
-      - name: Package and publish (signed)
+      - name: Package (signed)
         if: steps.signing.outputs.signed == 'true'
-        run: npx electron-builder ${{ matrix.targets }} --publish always
+        run: npx electron-builder ${{ matrix.targets }} --publish never
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
           WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
@@ -82,9 +97,53 @@ jobs:
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
-      - name: Package and publish (unsigned prerelease)
+      - name: Package (unsigned)
         if: steps.signing.outputs.signed != 'true'
-        run: npx electron-builder ${{ matrix.targets }} --publish always -c.publish.releaseType=prerelease
+        run: npx electron-builder ${{ matrix.targets }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: installers-${{ matrix.platform }}
+          if-no-files-found: error
+          retention-days: 7
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.exe
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.blockmap
+            dist/latest*.yml
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: installers-*
+          merge-multiple: true
+          path: release
+
+      - name: Create one draft release with every installer
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+          GH_REPO: ${{ github.repository }}
+          UNSIGNED_MAC: ${{ needs.build.outputs.unsigned-mac }}
+          UNSIGNED_WIN: ${{ needs.build.outputs.unsigned-win }}
+        run: |
+          FLAGS=(--draft --verify-tag --title "$GITHUB_REF_NAME")
+          NOTES="Draft created by the release workflow. Review, then publish."
+          if [ "$UNSIGNED_MAC" = "true" ] || [ "$UNSIGNED_WIN" = "true" ]; then
+            FLAGS+=(--prerelease)
+            NOTES="$NOTES"$'\n\n'"WARNING: this release contains UNSIGNED installers"
+            [ "$UNSIGNED_MAC" = "true" ] && NOTES="$NOTES (macOS)"
+            [ "$UNSIGNED_WIN" = "true" ] && NOTES="$NOTES (Windows)"
+            NOTES="$NOTES. Unsigned macOS builds cannot auto-update. Unsigned Windows updates are not signature-checked. Do not publish as a regular release."
+          fi
+          gh release create "$GITHUB_REF_NAME" "${FLAGS[@]}" --notes "$NOTES" release/*

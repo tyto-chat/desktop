@@ -8,8 +8,13 @@ SRC="${TYTO_CLIENT_DIR:-}"
 WORK="$ROOT/.client-build"
 OUT="$ROOT/app/renderer"
 
-if [ -z "$REF" ]; then
-  echo "client-ref is empty" >&2
+if ! [[ "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]]; then
+  echo "Invalid client ref: '$REF'" >&2
+  exit 1
+fi
+if ! [[ "$REF" =~ ^[0-9a-f]{40}$ ]] && [ "${TYTO_ALLOW_UNPINNED_CLIENT:-}" != "1" ]; then
+  echo "Client ref '$REF' is not a 40-character commit. Pin a commit in client-ref," >&2
+  echo "or set TYTO_ALLOW_UNPINNED_CLIENT=1 for a local development build." >&2
   exit 1
 fi
 
@@ -21,7 +26,7 @@ else
   rm -rf "$WORK"
   git init -q "$WORK"
   git -C "$WORK" remote add origin "$REPO"
-  git -C "$WORK" fetch -q --depth 1 origin "$REF"
+  git -C "$WORK" fetch -q --depth 1 origin -- "$REF"
   git -C "$WORK" checkout -q FETCH_HEAD
 fi
 

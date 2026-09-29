@@ -101,8 +101,8 @@ describe("contentSecurityPolicy", () => {
     expect(directive("connect-src")).not.toMatch(/\bhttp:|\bws:/);
   });
 
-  it("forbids frames, plugins and base rewrites", () => {
-    expect(directive("frame-src")).toBe("frame-src 'none'");
+  it("allows only the video embed frame and forbids plugins and base rewrites", () => {
+    expect(directive("frame-src")).toBe("frame-src https://www.youtube.com");
     expect(directive("object-src")).toBe("object-src 'none'");
     expect(directive("base-uri")).toBe("base-uri 'self'");
     expect(directive("default-src")).toBe("default-src 'self'");

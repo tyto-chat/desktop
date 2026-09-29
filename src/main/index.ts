@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain, safeStorage } from "electron";
 import { join } from "node:path";
 import { ConfigStore } from "./configStore";
 import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
-import { wireDeepLinks } from "./deepLinkWiring";
+import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
 import { originOf } from "./navigationPolicy";
@@ -14,6 +14,8 @@ import { createTray, type TrayController } from "./tray";
 import type { TrayAction } from "./trayState";
 import { startAutoUpdates } from "./updater";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
+
+const APP_ID = "chat.tyto.desktop";
 
 let mainWindow: BrowserWindow | null = null;
 let tray: TrayController | null = null;
@@ -100,23 +102,22 @@ function startApp(): void {
     startHidden: shellSettings.read().startMinimized,
     shouldReallyClose: () => isQuitting,
   });
-  mainWindow.webContents.on("did-start-navigation", (details) => {
-    if (details.isMainFrame && !details.isSameDocument) deepLinks.markNotReady();
-  });
-
-  wireDeepLinks(app, (url) => {
-    reveal();
-    deepLinks.push(urlEnvelope(url));
-  });
+  rearmQueueOnNavigation(mainWindow.webContents, deepLinks);
 
   startAutoUpdates(log);
 }
 
 registerAppScheme();
+app.setAppUserModelId(APP_ID);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
+  wireDeepLinks(app, (url) => {
+    reveal();
+    deepLinks.push(urlEnvelope(url));
+  });
+
   app.on("second-instance", reveal);
   app.on("activate", reveal);
 
