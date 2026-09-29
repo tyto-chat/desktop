@@ -42,6 +42,7 @@ TYTO_CLIENT_REPO=/path/to/client TYTO_CLIENT_REF=my-branch npm run build:client
 | `npm run smoke`        | Starts the app with its window hidden and checks that it boots and the bridge works. Needs a display: use `xvfb-run` where there is none |
 | `npm run pack`         | Unpacked build for the current platform in `dist/`                                                                                       |
 | `npm run dist`         | Installers for the current platform in `dist/`                                                                                           |
+| `npm run dist:arch`    | Arch Linux package in `dist/`. Run it in the `electronuserland/builder` Docker image; the packaging tool does not start on Arch itself   |
 | `npm run icons`        | Regenerates app and tray icons from `build/icon.svg`                                                                                     |
 
 ## Which client gets bundled

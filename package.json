@@ -25,7 +25,8 @@
     "smoke": "npm run build && TYTO_ALLOW_INSECURE_KEYCHAIN=1 electron scripts/smoke-main.js",
     "icons": "bash scripts/make-icons.sh",
     "pack": "npm run build && electron-builder --dir",
-    "dist": "npm run build && electron-builder"
+    "dist": "npm run build && electron-builder",
+    "dist:arch": "npm run build && electron-builder --linux pacman --publish never"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

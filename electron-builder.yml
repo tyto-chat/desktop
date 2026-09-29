@@ -64,3 +64,17 @@ linux:
       arch: [x64]
     - target: deb
       arch: [x64]
+
+pacman:
+  depends:
+    - gtk3
+    - nss
+    - alsa-lib
+    - libnotify
+    - libsecret
+    - libxss
+    - libxtst
+    - at-spi2-core
+    - util-linux-libs
+    - xdg-utils
+    - libayatana-appindicator
