@@ -31,6 +31,7 @@ function makeDeps(): BridgeIpcDeps {
     quit: vi.fn(),
     showNotification: vi.fn(),
     setBadge: vi.fn(),
+    deepLinksReady: vi.fn(),
   };
 }
 
@@ -71,9 +72,11 @@ describe("registerBridgeIpc", () => {
     expect(await invoke(BRIDGE_CHANNELS.appGetVersion, TRUSTED)).toBe("1.2.3");
     await invoke(BRIDGE_CHANNELS.appSetAutoLaunch, TRUSTED, true);
     listeners.get(BRIDGE_CHANNELS.appQuit)!(TRUSTED);
+    listeners.get(BRIDGE_CHANNELS.appDeepLinksReady)!(TRUSTED);
 
     expect(deps.setAutoLaunch).toHaveBeenCalledWith(true);
     expect(deps.quit).toHaveBeenCalledTimes(1);
+    expect(deps.deepLinksReady).toHaveBeenCalledTimes(1);
   });
 
   it("routes notifications and badge state", () => {
@@ -104,6 +107,7 @@ describe("registerBridgeIpc", () => {
     expect(deps.quit).not.toHaveBeenCalled();
     expect(deps.showNotification).not.toHaveBeenCalled();
     expect(deps.setBadge).not.toHaveBeenCalled();
+    expect(deps.deepLinksReady).not.toHaveBeenCalled();
   });
 
   it.each([

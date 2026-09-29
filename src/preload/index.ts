@@ -30,7 +30,11 @@ const bridge: PlatformBridge = {
     getVersion: () => ipcRenderer.invoke("bridge:app:getVersion"),
     setAutoLaunch: (enabled) => ipcRenderer.invoke("bridge:app:setAutoLaunch", enabled),
     quit: () => ipcRenderer.send("bridge:app:quit"),
-    onDeepLink: (handler) => subscribe<string>("deep-link", handler),
+    onDeepLink: (handler) => {
+      const unsubscribe = subscribe<string>("deep-link", handler);
+      ipcRenderer.send("bridge:app:deepLinksReady");
+      return unsubscribe;
+    },
     onTrayCommand: (handler) => subscribe<TrayCommand>("tray-command", handler),
   },
 };

@@ -9,6 +9,7 @@ export const BRIDGE_CHANNELS = {
   appGetVersion: "bridge:app:getVersion",
   appSetAutoLaunch: "bridge:app:setAutoLaunch",
   appQuit: "bridge:app:quit",
+  appDeepLinksReady: "bridge:app:deepLinksReady",
   notificationsShow: "bridge:notifications:show",
   appStateSetBadge: "bridge:appState:setBadge",
 } as const;
@@ -47,6 +48,7 @@ export interface BridgeIpcDeps {
   quit(): void;
   showNotification(notification: BridgeNotification): void;
   setBadge(state: BridgeBadgeState): void;
+  deepLinksReady(): void;
 }
 
 function text(value: unknown, maxLength: number, allowEmpty = true): value is string {
@@ -123,6 +125,7 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
   });
 
   listen(BRIDGE_CHANNELS.appQuit, () => deps.quit());
+  listen(BRIDGE_CHANNELS.appDeepLinksReady, () => deps.deepLinksReady());
   listen(BRIDGE_CHANNELS.notificationsShow, (value) => {
     const notification = parseNotification(value);
     if (notification) deps.showNotification(notification);
