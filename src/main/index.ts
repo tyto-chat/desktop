@@ -131,6 +131,7 @@ const passwordStore = preferredPasswordStore({
   platform: process.platform,
   desktop: process.env.XDG_CURRENT_DESKTOP,
   explicit: app.commandLine.hasSwitch("password-store"),
+  weakBackendAllowed: allowsWeakBackend({ isPackaged: app.isPackaged, env: process.env }),
 });
 if (passwordStore) app.commandLine.appendSwitch("password-store", passwordStore);
 
