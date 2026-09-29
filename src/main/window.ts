@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { classifyNavigation, isPermissionAllowed, originOf } from "./navigationPolicy";
 import { APP_ORIGIN } from "./protocol";
 import { chooseShareSource } from "./screenSharePolicy";
+import { titleBarOptions, type WindowTheme } from "./windowChrome";
 
 export function resolveAppOrigin(): string {
   const devUrl = app.isPackaged ? undefined : process.env.TYTO_DEV_URL;
@@ -10,6 +11,7 @@ export function resolveAppOrigin(): string {
 }
 
 export interface MainWindowOptions {
+  theme: WindowTheme;
   startHidden: boolean;
   shouldReallyClose: () => boolean;
 }
@@ -23,8 +25,9 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
     minWidth: 480,
     minHeight: 480,
     show: false,
-    backgroundColor: "#0f1117",
+    backgroundColor: options.theme.color,
     autoHideMenuBar: true,
+    ...titleBarOptions(process.platform, options.theme),
     webPreferences: {
       preload: join(__dirname, "..", "preload", "index.js"),
       contextIsolation: true,

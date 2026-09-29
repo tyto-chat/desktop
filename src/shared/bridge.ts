@@ -42,6 +42,11 @@ export type TrayCommand =
   | { type: "toggle-mute" }
   | { type: "leave-call" };
 
+export interface BridgeWindowTheme {
+  color: string;
+  symbolColor: string;
+}
+
 export interface PlatformBridge {
   bridgeVersion: number;
   secrets: {
@@ -59,6 +64,7 @@ export interface PlatformBridge {
   appState: {
     setBadge(state: BridgeBadgeState): void;
     setTrayLabels(labels: BridgeTrayLabels): void;
+    setWindowTheme(theme: BridgeWindowTheme): void;
   };
   app: {
     getVersion(): Promise<string>;

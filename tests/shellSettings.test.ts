@@ -59,4 +59,24 @@ describe("ShellSettingsStore", () => {
       });
     },
   );
+
+  it("remembers the window colours without losing the other settings", () => {
+    const store = new ShellSettingsStore(dir);
+    store.update({ startMinimized: true });
+    store.saveTrayLabels({ quit: "Zakończ" });
+
+    store.saveWindowTheme({ color: "#f6f7f9", symbolColor: "#5a6175" });
+
+    const reopened = new ShellSettingsStore(dir);
+    expect(reopened.readWindowTheme()).toEqual({ color: "#f6f7f9", symbolColor: "#5a6175" });
+    expect(reopened.read().startMinimized).toBe(true);
+    expect(reopened.readTrayLabels()).toEqual({ quit: "Zakończ" });
+  });
+
+  it("ignores stored window colours that are not valid", () => {
+    const store = new ShellSettingsStore(dir);
+    store.saveWindowTheme({ color: "red", symbolColor: "#5a6175" });
+
+    expect(store.readWindowTheme()).toBeNull();
+  });
 });

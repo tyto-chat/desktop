@@ -1,6 +1,7 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ShellSettings } from "./trayState";
+import { parseWindowTheme, type WindowTheme } from "./windowChrome";
 
 const DEFAULTS: ShellSettings = { autoLaunch: false, startMinimized: false };
 
@@ -35,6 +36,14 @@ export class ShellSettingsStore {
 
   saveTrayLabels(trayLabels: Record<string, unknown>): void {
     this.save({ ...this.load(), trayLabels });
+  }
+
+  readWindowTheme(): WindowTheme | null {
+    return parseWindowTheme(this.load().windowTheme);
+  }
+
+  saveWindowTheme(windowTheme: WindowTheme): void {
+    this.save({ ...this.load(), windowTheme });
   }
 
   private load(): Record<string, unknown> {
