@@ -1,6 +1,7 @@
 appId: chat.tyto.desktop
-productName: tyto
+productName: Tyto
 copyright: Copyright © tyto.chat
+artifactName: tyto-${version}-${arch}.${ext}
 
 directories:
   output: dist
@@ -15,7 +16,7 @@ files:
 asar: true
 
 protocols:
-  - name: tyto
+  - name: Tyto
     schemes:
       - tyto
 
@@ -32,8 +33,8 @@ mac:
   entitlements: build/entitlements.mac.plist
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
-    NSMicrophoneUsageDescription: tyto uses the microphone for voice channels.
-    NSCameraUsageDescription: tyto uses the camera for video in voice channels.
+    NSMicrophoneUsageDescription: Tyto uses the microphone for voice channels.
+    NSCameraUsageDescription: Tyto uses the camera for video in voice channels.
   target:
     - target: dmg
       arch: [x64, arm64]

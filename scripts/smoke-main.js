@@ -11,7 +11,7 @@ BrowserWindow.prototype.focus = function focus() {};
 
 app.commandLine.appendSwitch("disable-gpu");
 const userData = mkdtempSync(join(tmpdir(), "tyto-smoke-"));
-app.setPath("userData", userData);
+process.env.TYTO_USER_DATA_DIR = userData;
 
 function savedTrayLabels() {
   try {
@@ -73,6 +73,8 @@ app.on("web-contents-created", (_event, contents) => {
         })()`);
         probe.language = await contents.executeJavaScript("document.documentElement.lang");
         probe.trayLabels = savedTrayLabels();
+        probe.userData = app.getPath("userData");
+        probe.usedTemporaryData = app.getPath("userData") === userData;
         report.windows.push(probe);
       } catch (error) {
         report.failures.push(`probe failed: ${error.message}`);

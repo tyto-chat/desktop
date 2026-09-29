@@ -1,7 +1,7 @@
 {
   "name": "tyto-desktop",
-  "productName": "tyto",
-  "version": "0.1.0",
+  "productName": "Tyto",
+  "version": "0.1.0-beta.1",
   "description": "tyto.chat desktop app",
   "homepage": "https://tyto.chat",
   "author": "tyto.chat",

@@ -14,6 +14,7 @@ import { ShellSettingsStore } from "./shellSettings";
 import { createTray, type TrayController } from "./tray";
 import { ENGLISH_TRAY_LABELS, mergeTrayLabels, type TrayAction } from "./trayState";
 import { startAutoUpdates } from "./updater";
+import { resolveUserDataDir } from "./userData";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
 
 const APP_ID = "chat.tyto.desktop";
@@ -113,6 +114,15 @@ function startApp(): void {
 
   startAutoUpdates(log);
 }
+
+app.setPath(
+  "userData",
+  resolveUserDataDir({
+    appData: app.getPath("appData"),
+    isPackaged: app.isPackaged,
+    override: process.env.TYTO_USER_DATA_DIR,
+  }),
+);
 
 registerAppScheme();
 app.setAppUserModelId(APP_ID);

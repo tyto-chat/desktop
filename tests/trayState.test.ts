@@ -15,7 +15,7 @@ const idle: BadgeState = { unreadCount: 0, callState: "none" };
 const EN = ENGLISH_TRAY_LABELS;
 
 const POLISH: TrayLabels = {
-  open: "Otwórz tyto",
+  open: "Otwórz Tyto",
   mute: "Wycisz",
   unmute: "Wyłącz wyciszenie",
   leaveCall: "Opuść rozmowę",
@@ -63,7 +63,7 @@ describe("trayTooltipFor", () => {
   });
 
   it("names the app when idle", () => {
-    expect(trayTooltipFor(idle)).toBe("tyto");
+    expect(trayTooltipFor(idle)).toBe("Tyto");
   });
 
   it("falls back to English when the app sent no text", () => {
@@ -137,7 +137,7 @@ const settings = { autoLaunch: false, startMinimized: false };
 describe("buildTrayMenu", () => {
   it("lists the idle menu in order", () => {
     expect(labels(buildTrayMenu(idle, settings, EN))).toEqual([
-      "Open tyto",
+      "Open Tyto",
       "Snooze notifications",
       "Presence",
       "Start on boot",
@@ -155,7 +155,7 @@ describe("buildTrayMenu", () => {
     const shown = labels(flatten(menu));
 
     expect(shown).toEqual([
-      "Otwórz tyto",
+      "Otwórz Tyto",
       "W rozmowie (wyciszono): #voice",
       "Wyłącz wyciszenie",
       "Opuść rozmowę",
@@ -211,7 +211,7 @@ describe("buildTrayMenu", () => {
       EN,
     );
     expect(labels(menu)).toEqual([
-      "Open tyto",
+      "Open Tyto",
       "In call: #voice @ Srv",
       "Mute",
       "Leave call",
