@@ -7,6 +7,7 @@ import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
 import { originOf } from "./navigationPolicy";
 import { showNativeNotification } from "./notifications";
+import { preferredPasswordStore } from "./passwordStore";
 import { registerAppProtocol, registerAppScheme } from "./protocol";
 import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
@@ -109,6 +110,13 @@ function startApp(): void {
 
 registerAppScheme();
 app.setAppUserModelId(APP_ID);
+
+const passwordStore = preferredPasswordStore({
+  platform: process.platform,
+  desktop: process.env.XDG_CURRENT_DESKTOP,
+  explicit: app.commandLine.hasSwitch("password-store"),
+});
+if (passwordStore) app.commandLine.appendSwitch("password-store", passwordStore);
 
 if (!app.requestSingleInstanceLock()) {
   app.quit();
