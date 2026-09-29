@@ -1,7 +1,8 @@
-import { app, BrowserWindow, shell } from "electron";
+import { app, BrowserWindow, desktopCapturer, shell } from "electron";
 import { join } from "node:path";
 import { classifyNavigation, isPermissionAllowed, originOf } from "./navigationPolicy";
 import { APP_ORIGIN } from "./protocol";
+import { chooseShareSource } from "./screenSharePolicy";
 
 export function resolveAppOrigin(): string {
   const devUrl = app.isPackaged ? undefined : process.env.TYTO_DEV_URL;
@@ -39,6 +40,20 @@ export function createMainWindow(options: MainWindowOptions): BrowserWindow {
   });
   session.setPermissionCheckHandler((_contents, permission, requestingOrigin) =>
     isPermissionAllowed(permission, requestingOrigin, appOrigin),
+  );
+
+  session.setDisplayMediaRequestHandler(
+    (request, callback) => {
+      void desktopCapturer
+        .getSources({ types: ["screen", "window"] })
+        .then((sources) => {
+          const source = chooseShareSource(sources, request.securityOrigin, appOrigin);
+          if (source) callback({ video: source });
+          else callback({});
+        })
+        .catch(() => callback({}));
+    },
+    { useSystemPicker: true },
   );
 
   window.webContents.setWindowOpenHandler(({ url }) => {
