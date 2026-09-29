@@ -12,7 +12,7 @@ import { registerAppProtocol, registerAppScheme } from "./protocol";
 import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
 import { createTray, type TrayController } from "./tray";
-import type { TrayAction } from "./trayState";
+import { ENGLISH_TRAY_LABELS, mergeTrayLabels, type TrayAction } from "./trayState";
 import { startAutoUpdates } from "./updater";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
 
@@ -89,12 +89,18 @@ function startApp(): void {
         deepLinks.push(notificationEnvelope(payload));
       }),
     setBadge: (state) => tray?.setBadge(state),
+    setTrayLabels: (received) => {
+      const labels = mergeTrayLabels(received, ENGLISH_TRAY_LABELS);
+      shellSettings.saveTrayLabels({ ...labels });
+      tray?.setLabels(labels);
+    },
     deepLinksReady: () => deepLinks.markReady(),
   });
 
   tray = createTray({
     iconDir: join(__dirname, "..", "..", "assets", "tray"),
     settings: shellSettings.read(),
+    labels: mergeTrayLabels(shellSettings.readTrayLabels(), ENGLISH_TRAY_LABELS),
     onAction: onTrayAction,
   });
 

@@ -12,6 +12,7 @@ export const BRIDGE_CHANNELS = {
   appDeepLinksReady: "bridge:app:deepLinksReady",
   notificationsShow: "bridge:notifications:show",
   appStateSetBadge: "bridge:appState:setBadge",
+  appStateSetTrayLabels: "bridge:appState:setTrayLabels",
 } as const;
 
 export const RENDERER_CHANNELS = {
@@ -27,6 +28,7 @@ const MAX_BODY_LENGTH = 2_048;
 const MAX_TAG_LENGTH = 256;
 const MAX_PAYLOAD_LENGTH = 8_192;
 const MAX_CALL_LABEL_LENGTH = 256;
+const MAX_TOOLTIP_LENGTH = 512;
 
 const CALL_STATES: readonly unknown[] = ["none", "in-call", "in-call-muted"];
 
@@ -48,6 +50,7 @@ export interface BridgeIpcDeps {
   quit(): void;
   showNotification(notification: BridgeNotification): void;
   setBadge(state: BridgeBadgeState): void;
+  setTrayLabels(labels: Record<string, unknown>): void;
   deepLinksReady(): void;
 }
 
@@ -76,16 +79,18 @@ function parseNotification(value: unknown): BridgeNotification | null {
 
 function parseBadgeState(value: unknown): BridgeBadgeState | null {
   if (value === null || typeof value !== "object") return null;
-  const { unreadCount, callState, callLabel } = value as Record<string, unknown>;
+  const { unreadCount, callState, callLabel, tooltip } = value as Record<string, unknown>;
   if (typeof unreadCount !== "number" || !Number.isInteger(unreadCount) || unreadCount < 0) {
     return null;
   }
   if (!CALL_STATES.includes(callState)) return null;
   if (callLabel !== undefined && !text(callLabel, MAX_CALL_LABEL_LENGTH)) return null;
+  if (tooltip !== undefined && !text(tooltip, MAX_TOOLTIP_LENGTH)) return null;
   return {
     unreadCount,
     callState: callState as BridgeBadgeState["callState"],
     ...(callLabel === undefined ? {} : { callLabel }),
+    ...(tooltip === undefined ? {} : { tooltip }),
   };
 }
 
@@ -133,5 +138,10 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
   listen(BRIDGE_CHANNELS.appStateSetBadge, (value) => {
     const state = parseBadgeState(value);
     if (state) deps.setBadge(state);
+  });
+  listen(BRIDGE_CHANNELS.appStateSetTrayLabels, (value) => {
+    if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+      deps.setTrayLabels(value as Record<string, unknown>);
+    }
   });
 }

@@ -31,6 +31,7 @@ function makeDeps(): BridgeIpcDeps {
     quit: vi.fn(),
     showNotification: vi.fn(),
     setBadge: vi.fn(),
+    setTrayLabels: vi.fn(),
     deepLinksReady: vi.fn(),
   };
 }
@@ -96,6 +97,44 @@ describe("registerBridgeIpc", () => {
     });
   });
 
+  it("passes tray labels through for the shell to validate", () => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetTrayLabels)!(TRUSTED, { quit: "Zakończ" });
+    expect(deps.setTrayLabels).toHaveBeenCalledWith({ quit: "Zakończ" });
+  });
+
+  it.each([[null], ["text"], [5], [[1, 2]]])(
+    "drops tray labels that are not an object: %j",
+    (value) => {
+      listeners.get(BRIDGE_CHANNELS.appStateSetTrayLabels)!(TRUSTED, value);
+      expect(deps.setTrayLabels).not.toHaveBeenCalled();
+    },
+  );
+
+  it("carries the translated tooltip with the badge state", () => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {
+      unreadCount: 3,
+      callState: "none",
+      tooltip: "3 nieprzeczytane",
+    });
+    expect(deps.setBadge).toHaveBeenCalledWith({
+      unreadCount: 3,
+      callState: "none",
+      tooltip: "3 nieprzeczytane",
+    });
+  });
+
+  it.each([[5], ["x".repeat(513)], [{ a: 1 }]])(
+    "drops a badge state with the tooltip %j",
+    (tooltip) => {
+      listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {
+        unreadCount: 1,
+        callState: "none",
+        tooltip,
+      });
+      expect(deps.setBadge).not.toHaveBeenCalled();
+    },
+  );
+
   it("refuses every channel for a sender outside the app origin", async () => {
     for (const channel of handlers.keys()) {
       await expect(invoke(channel, FOREIGN, "k", "v")).rejects.toThrow(/untrusted/i);
@@ -107,6 +146,7 @@ describe("registerBridgeIpc", () => {
     expect(deps.quit).not.toHaveBeenCalled();
     expect(deps.showNotification).not.toHaveBeenCalled();
     expect(deps.setBadge).not.toHaveBeenCalled();
+    expect(deps.setTrayLabels).not.toHaveBeenCalled();
     expect(deps.deepLinksReady).not.toHaveBeenCalled();
   });
 

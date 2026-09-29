@@ -4,22 +4,24 @@ import {
   buildTrayMenu,
   trayIconFor,
   trayTooltipFor,
-  TRAY_LABELS,
   type BadgeState,
   type ShellSettings,
   type TrayAction,
+  type TrayLabels,
   type TrayMenuItem,
 } from "./trayState";
 
 export interface TrayController {
   setBadge(state: BadgeState): void;
   setSettings(settings: ShellSettings): void;
+  setLabels(labels: TrayLabels): void;
   destroy(): void;
 }
 
 export interface TrayDeps {
   iconDir: string;
   settings: ShellSettings;
+  labels: TrayLabels;
   onAction(action: TrayAction): void;
 }
 
@@ -43,6 +45,7 @@ function toTemplate(
 export function createTray(deps: TrayDeps): TrayController {
   let badge: BadgeState = { unreadCount: 0, callState: "none" };
   let settings = deps.settings;
+  let labels = deps.labels;
 
   const iconFor = (state: BadgeState) =>
     nativeImage.createFromPath(join(deps.iconDir, `${trayIconFor(state)}.png`));
@@ -52,11 +55,9 @@ export function createTray(deps: TrayDeps): TrayController {
 
   const render = () => {
     tray.setImage(iconFor(badge));
-    tray.setToolTip(trayTooltipFor(badge, TRAY_LABELS));
+    tray.setToolTip(trayTooltipFor(badge));
     tray.setContextMenu(
-      Menu.buildFromTemplate(
-        toTemplate(buildTrayMenu(badge, settings, TRAY_LABELS), deps.onAction),
-      ),
+      Menu.buildFromTemplate(toTemplate(buildTrayMenu(badge, settings, labels), deps.onAction)),
     );
     if (process.platform === "darwin") {
       app.dock?.setBadge(badge.unreadCount > 0 ? String(badge.unreadCount) : "");
@@ -74,6 +75,10 @@ export function createTray(deps: TrayDeps): TrayController {
     },
     setSettings(next) {
       settings = next;
+      render();
+    },
+    setLabels(next) {
+      labels = next;
       render();
     },
     destroy() {

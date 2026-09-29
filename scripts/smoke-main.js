@@ -1,5 +1,5 @@
 const { app, BrowserWindow } = require("electron");
-const { mkdtempSync } = require("node:fs");
+const { mkdtempSync, readFileSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
 
@@ -10,7 +10,17 @@ BrowserWindow.prototype.show = function show() {};
 BrowserWindow.prototype.focus = function focus() {};
 
 app.commandLine.appendSwitch("disable-gpu");
-app.setPath("userData", mkdtempSync(join(tmpdir(), "tyto-smoke-")));
+const userData = mkdtempSync(join(tmpdir(), "tyto-smoke-"));
+app.setPath("userData", userData);
+
+function savedTrayLabels() {
+  try {
+    const { trayLabels } = JSON.parse(readFileSync(join(userData, "shell-settings.json"), "utf8"));
+    return trayLabels ?? null;
+  } catch {
+    return null;
+  }
+}
 
 function finish(code) {
   console.log(`SMOKE ${JSON.stringify(report)}`);
@@ -61,6 +71,8 @@ app.on("web-contents-created", (_event, contents) => {
           }
           return out;
         })()`);
+        probe.language = await contents.executeJavaScript("document.documentElement.lang");
+        probe.trayLabels = savedTrayLabels();
         report.windows.push(probe);
       } catch (error) {
         report.failures.push(`probe failed: ${error.message}`);
