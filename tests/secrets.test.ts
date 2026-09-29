@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { beforeEach, describe, expect, it } from "vitest";
-import { bootMode, SecretStore, type SecretCrypto } from "../src/main/secrets";
+import { allowsWeakBackend, bootMode, SecretStore, type SecretCrypto } from "../src/main/secrets";
 
 const fakeCrypto: SecretCrypto = {
   isEncryptionAvailable: () => true,
@@ -127,4 +127,38 @@ describe("bootMode", () => {
       );
     },
   );
+
+  it("accepts a weak linux backend only when development explicitly allows it", () => {
+    const weak = { encryptionAvailable: true, platform: "linux", backend: "basic_text" };
+    expect(bootMode({ ...weak, allowWeakBackend: true })).toBe("app");
+    expect(bootMode({ ...weak, allowWeakBackend: false })).toBe("keychain-error");
+  });
+
+  it("never lets that override rescue a machine that cannot encrypt at all", () => {
+    expect(
+      bootMode({
+        encryptionAvailable: false,
+        platform: "linux",
+        backend: "basic_text",
+        allowWeakBackend: true,
+      }),
+    ).toBe("keychain-error");
+  });
+});
+
+describe("allowsWeakBackend", () => {
+  it("is on only for an unpackaged app that asks for it", () => {
+    expect(
+      allowsWeakBackend({ isPackaged: false, env: { TYTO_ALLOW_INSECURE_KEYCHAIN: "1" } }),
+    ).toBe(true);
+  });
+
+  it.each([
+    [{ isPackaged: true, env: { TYTO_ALLOW_INSECURE_KEYCHAIN: "1" } }],
+    [{ isPackaged: false, env: {} }],
+    [{ isPackaged: false, env: { TYTO_ALLOW_INSECURE_KEYCHAIN: "true" } }],
+    [{ isPackaged: false, env: { TYTO_ALLOW_INSECURE_KEYCHAIN: "0" } }],
+  ])("is off for %j", (input) => {
+    expect(allowsWeakBackend(input)).toBe(false);
+  });
 });

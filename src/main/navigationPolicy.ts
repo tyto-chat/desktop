@@ -10,13 +10,30 @@ const ALLOWED_PERMISSIONS = new Set([
   "display-capture",
 ]);
 
-function originOf(raw: string): string | null {
+export function originOf(raw: string): string | null {
   try {
     const url = new URL(raw);
-    return `${url.protocol}//${url.host}`;
+    return url.host === "" ? null : `${url.protocol}//${url.host}`;
   } catch {
     return null;
   }
+}
+
+export function contentSecurityPolicy(): string {
+  return [
+    "default-src 'self'",
+    "script-src 'self' 'wasm-unsafe-eval'",
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' https: data: blob:",
+    "media-src 'self' https: blob:",
+    "font-src 'self' data:",
+    "connect-src 'self' https: wss:",
+    "worker-src 'self' blob:",
+    "frame-src 'none'",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ].join("; ");
 }
 
 export function classifyNavigation(raw: string, appOrigin: string): NavigationKind {
@@ -26,7 +43,7 @@ export function classifyNavigation(raw: string, appOrigin: string): NavigationKi
   } catch {
     return "blocked";
   }
-  if (`${url.protocol}//${url.host}` === appOrigin) return "internal";
+  if (originOf(raw) === appOrigin) return "internal";
   return EXTERNAL_PROTOCOLS.has(url.protocol) ? "external" : "blocked";
 }
 

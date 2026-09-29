@@ -13,16 +13,28 @@ export interface KeychainStatus {
   encryptionAvailable: boolean;
   platform: string;
   backend: string | null;
+  allowWeakBackend?: boolean;
 }
 
 const WEAK_LINUX_BACKENDS: readonly (string | null)[] = ["basic_text", "unknown", null];
 
 export function bootMode(status: KeychainStatus): BootMode {
   if (!status.encryptionAvailable) return "keychain-error";
-  if (status.platform === "linux" && WEAK_LINUX_BACKENDS.includes(status.backend)) {
+  if (
+    status.platform === "linux" &&
+    WEAK_LINUX_BACKENDS.includes(status.backend) &&
+    !status.allowWeakBackend
+  ) {
     return "keychain-error";
   }
   return "app";
+}
+
+export function allowsWeakBackend(input: {
+  isPackaged: boolean;
+  env: Record<string, string | undefined>;
+}): boolean {
+  return !input.isPackaged && input.env.TYTO_ALLOW_INSECURE_KEYCHAIN === "1";
 }
 
 export class SecretStore {

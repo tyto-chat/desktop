@@ -1,11 +1,11 @@
 import { app, BrowserWindow, shell } from "electron";
 import { join } from "node:path";
-import { classifyNavigation, isPermissionAllowed } from "./navigationPolicy";
+import { classifyNavigation, isPermissionAllowed, originOf } from "./navigationPolicy";
 import { APP_ORIGIN } from "./protocol";
 
 export function resolveAppOrigin(): string {
   const devUrl = app.isPackaged ? undefined : process.env.TYTO_DEV_URL;
-  return devUrl ? new URL(devUrl).origin : APP_ORIGIN;
+  return (devUrl && originOf(devUrl)) || APP_ORIGIN;
 }
 
 export interface MainWindowOptions {

@@ -5,9 +5,10 @@ import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
 import { wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
+import { originOf } from "./navigationPolicy";
 import { showNativeNotification } from "./notifications";
 import { registerAppProtocol, registerAppScheme } from "./protocol";
-import { bootMode, SecretStore } from "./secrets";
+import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
 import { createTray, type TrayController } from "./tray";
 import type { TrayAction } from "./trayState";
@@ -24,12 +25,7 @@ const deepLinks = new DeepLinkQueue((envelope) => {
 
 function senderOrigin(event: unknown): string | null {
   const url = (event as Electron.IpcMainInvokeEvent).senderFrame?.url;
-  if (!url) return null;
-  try {
-    return new URL(url).origin;
-  } catch {
-    return null;
-  }
+  return url ? originOf(url) : null;
 }
 
 function quit(): void {
@@ -94,7 +90,7 @@ function startApp(): void {
   });
 
   tray = createTray({
-    iconDir: join(__dirname, "..", "..", "build", "tray"),
+    iconDir: join(__dirname, "..", "..", "assets", "tray"),
     settings: shellSettings.read(),
     onAction: onTrayAction,
   });
@@ -133,10 +129,16 @@ if (!app.requestSingleInstanceLock()) {
   });
 
   void app.whenReady().then(() => {
+    const allowWeakBackend = allowsWeakBackend({ isPackaged: app.isPackaged, env: process.env });
+    if (allowWeakBackend) {
+      log("INSECURE: weak keychain backends allowed for development");
+      if (process.platform === "linux") safeStorage.setUsePlainTextEncryption(true);
+    }
     const keychain = {
       encryptionAvailable: safeStorage.isEncryptionAvailable(),
       platform: process.platform,
       backend: process.platform === "linux" ? safeStorage.getSelectedStorageBackend() : null,
+      allowWeakBackend,
     };
     if (bootMode(keychain) === "keychain-error") {
       log(`keychain unavailable (backend: ${keychain.backend ?? "none"})`);
