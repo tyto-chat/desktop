@@ -1,4 +1,4 @@
-const { app } = require("electron");
+const { app, BrowserWindow } = require("electron");
 const { mkdtempSync } = require("node:fs");
 const { tmpdir } = require("node:os");
 const { join } = require("node:path");
@@ -6,7 +6,9 @@ const { join } = require("node:path");
 const TIMEOUT_MS = Number(process.env.TYTO_SMOKE_TIMEOUT_MS ?? 20000);
 const report = { windows: [], console: [], failures: [] };
 
-app.commandLine.appendSwitch("ozone-platform", "headless");
+BrowserWindow.prototype.show = function show() {};
+BrowserWindow.prototype.focus = function focus() {};
+
 app.commandLine.appendSwitch("disable-gpu");
 app.setPath("userData", mkdtempSync(join(tmpdir(), "tyto-smoke-")));
 

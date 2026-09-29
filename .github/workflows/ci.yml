@@ -47,8 +47,8 @@ jobs:
       - name: Allow the Chromium sandbox on the runner
         run: sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
 
-      - name: Headless smoke launch
-        run: npm run smoke
+      - name: Smoke launch on a virtual display
+        run: xvfb-run --auto-servernum npm run smoke
 
       - name: Package (unpacked, unsigned)
         run: npm run pack

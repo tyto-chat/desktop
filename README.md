@@ -33,16 +33,16 @@ To bundle a local client checkout instead of the pinned one:
 TYTO_CLIENT_REPO=/path/to/client TYTO_CLIENT_REF=my-branch npm run build:client
 ```
 
-| Command                | What it does                                                          |
-| ---------------------- | --------------------------------------------------------------------- |
-| `npm test`             | Unit tests                                                            |
-| `npm run typecheck`    | Type check                                                            |
-| `npm run lint`         | Lint                                                                  |
-| `npm run format:check` | Formatting check                                                      |
-| `npm run smoke`        | Starts the app headless and checks that it boots and the bridge works |
-| `npm run pack`         | Unpacked build for the current platform in `dist/`                    |
-| `npm run dist`         | Installers for the current platform in `dist/`                        |
-| `npm run icons`        | Regenerates app and tray icons from `build/icon.svg`                  |
+| Command                | What it does                                                                                                                             |
+| ---------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm test`             | Unit tests                                                                                                                               |
+| `npm run typecheck`    | Type check                                                                                                                               |
+| `npm run lint`         | Lint                                                                                                                                     |
+| `npm run format:check` | Formatting check                                                                                                                         |
+| `npm run smoke`        | Starts the app with its window hidden and checks that it boots and the bridge works. Needs a display: use `xvfb-run` where there is none |
+| `npm run pack`         | Unpacked build for the current platform in `dist/`                                                                                       |
+| `npm run dist`         | Installers for the current platform in `dist/`                                                                                           |
+| `npm run icons`        | Regenerates app and tray icons from `build/icon.svg`                                                                                     |
 
 ## Which client gets bundled
 

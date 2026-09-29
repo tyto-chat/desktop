@@ -60,11 +60,11 @@ jobs:
       - name: Build the shell
         run: npm run build
 
-      - name: Headless smoke launch
+      - name: Smoke launch on a virtual display
         if: matrix.platform == 'linux'
         run: |
           sudo sysctl -w kernel.apparmor_restrict_unprivileged_userns=0
-          TYTO_ALLOW_INSECURE_KEYCHAIN=1 npx electron scripts/smoke-main.js
+          TYTO_ALLOW_INSECURE_KEYCHAIN=1 xvfb-run --auto-servernum npx electron scripts/smoke-main.js
 
       - name: Decide whether this build is signed
         id: signing
