@@ -27,9 +27,6 @@ jobs:
     defaults:
       run:
         shell: bash
-    outputs:
-      unsigned-mac: ${{ steps.signing.outputs.unsigned-mac }}
-      unsigned-win: ${{ steps.signing.outputs.unsigned-win }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -81,7 +78,8 @@ jobs:
           if [ "$PLATFORM" = "win" ] && [ -z "$WIN_CSC_LINK" ]; then SIGNED=false; fi
           echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
           if [ "$SIGNED" = "false" ]; then
-            echo "unsigned-$PLATFORM=true" >> "$GITHUB_OUTPUT"
+            mkdir -p dist
+            touch "dist/UNSIGNED-$PLATFORM"
             echo "::warning::No signing certificate for $PLATFORM. This installer is UNSIGNED."
           fi
 
@@ -116,6 +114,7 @@ jobs:
             dist/*.deb
             dist/*.blockmap
             dist/latest*.yml
+            dist/UNSIGNED-*
 
   publish:
     needs: build
@@ -134,9 +133,12 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GH_REPO: ${{ github.repository }}
-          UNSIGNED_MAC: ${{ needs.build.outputs.unsigned-mac }}
-          UNSIGNED_WIN: ${{ needs.build.outputs.unsigned-win }}
         run: |
+          UNSIGNED_MAC=false
+          UNSIGNED_WIN=false
+          [ -e release/UNSIGNED-mac ] && UNSIGNED_MAC=true
+          [ -e release/UNSIGNED-win ] && UNSIGNED_WIN=true
+          rm -f release/UNSIGNED-*
           FLAGS=(--draft --verify-tag --title "$GITHUB_REF_NAME")
           NOTES="Draft created by the release workflow. Review, then publish."
           if [ "$UNSIGNED_MAC" = "true" ] || [ "$UNSIGNED_WIN" = "true" ]; then
