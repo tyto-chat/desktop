@@ -1,0 +1,7 @@
+node_modules/
+app/
+dist/
+.client-build/
+*.log
+.env
+.env.*
