@@ -48,8 +48,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint, typecheck, format
-        run: npm run lint && npm run typecheck && npm run format:check
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Format
+        run: npm run format:check
 
       - name: Unit tests
         run: npm test
@@ -148,4 +154,11 @@ jobs:
             [ "$UNSIGNED_WIN" = "true" ] && NOTES="$NOTES (Windows)"
             NOTES="$NOTES. Unsigned macOS builds cannot auto-update. Unsigned Windows updates are not signature-checked. Do not publish as a regular release."
           fi
-          gh release create "$GITHUB_REF_NAME" "${FLAGS[@]}" --notes "$NOTES" release/*
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --clobber release/*
+            if [ "$UNSIGNED_MAC" = "true" ] || [ "$UNSIGNED_WIN" = "true" ]; then
+              gh release edit "$GITHUB_REF_NAME" --prerelease
+            fi
+          else
+            gh release create "$GITHUB_REF_NAME" "${FLAGS[@]}" --notes "$NOTES" release/*
+          fi
