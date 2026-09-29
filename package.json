@@ -5,7 +5,7 @@
   "description": "tyto.chat desktop app",
   "homepage": "https://tyto.chat",
   "author": "tyto.chat",
-  "license": "AGPL-3.0-or-later",
+  "license": "MIT",
   "private": true,
   "main": "app/main/index.js",
   "engines": {

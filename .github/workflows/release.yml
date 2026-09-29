@@ -1,0 +1,90 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            targets: --mac
+          - os: windows-latest
+            targets: --win
+          - os: ubuntu-latest
+            targets: --linux
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Check the tag matches package.json
+        run: |
+          VERSION="v$(node -p "require('./package.json').version")"
+          if [ "$VERSION" != "$GITHUB_REF_NAME" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $VERSION"
+            exit 1
+          fi
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Build the client at client-ref
+        run: npm run build:client
+
+      - name: Build the shell
+        run: npm run build
+
+      - name: Decide whether this build is signed
+        id: signing
+        env:
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+        run: |
+          SIGNED=false
+          case "${{ matrix.os }}" in
+            macos-latest) [ -n "$CSC_LINK" ] && SIGNED=true ;;
+            windows-latest) [ -n "$WIN_CSC_LINK" ] && SIGNED=true ;;
+            ubuntu-latest) SIGNED=true ;;
+          esac
+          echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
+          if [ "$SIGNED" = "false" ]; then
+            echo "::warning::No signing certificate for ${{ matrix.os }}. This build is UNSIGNED and is published as a prerelease."
+          fi
+
+      - name: Package and publish (signed)
+        if: steps.signing.outputs.signed == 'true'
+        run: npx electron-builder ${{ matrix.targets }} --publish always
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+
+      - name: Package and publish (unsigned prerelease)
+        if: steps.signing.outputs.signed != 'true'
+        run: npx electron-builder ${{ matrix.targets }} --publish always -c.publish.releaseType=prerelease
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
