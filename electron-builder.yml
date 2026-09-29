@@ -1,0 +1,66 @@
+appId: chat.tyto.desktop
+productName: tyto
+copyright: Copyright © tyto.chat
+
+directories:
+  output: dist
+  buildResources: build
+
+files:
+  - app/**
+  - assets/**
+  - package.json
+  - "!app/renderer/**/*.map"
+
+asar: true
+
+protocols:
+  - name: tyto
+    schemes:
+      - tyto
+
+publish:
+  provider: github
+  owner: tyto-chat
+  repo: desktop
+
+mac:
+  category: public.app-category.social-networking
+  icon: build/icon.png
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  entitlements: build/entitlements.mac.plist
+  entitlementsInherit: build/entitlements.mac.plist
+  extendInfo:
+    NSMicrophoneUsageDescription: tyto uses the microphone for voice channels.
+    NSCameraUsageDescription: tyto uses the camera for video in voice channels.
+  target:
+    - target: dmg
+      arch: [x64, arm64]
+    - target: zip
+      arch: [x64, arm64]
+
+win:
+  icon: build/icon.png
+  target:
+    - target: nsis
+      arch: [x64]
+
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+
+linux:
+  icon: build/icon.png
+  category: Network;InstantMessaging
+  synopsis: tyto.chat desktop app
+  maintainer: tyto.chat
+  executableName: tyto
+  mimeTypes:
+    - x-scheme-handler/tyto
+  target:
+    - target: AppImage
+      arch: [x64]
+    - target: deb
+      arch: [x64]

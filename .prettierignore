@@ -3,3 +3,4 @@ dist
 .client-build
 node_modules
 package-lock.json
+build/entitlements.mac.plist

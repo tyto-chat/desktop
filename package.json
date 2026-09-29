@@ -21,12 +21,17 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "smoke": "npm run build && TYTO_ALLOW_INSECURE_KEYCHAIN=1 electron scripts/smoke-main.js",
+    "icons": "bash scripts/make-icons.sh",
+    "pack": "npm run build && electron-builder --dir",
+    "dist": "npm run build && electron-builder"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",
     "@types/node": "^24.10.1",
     "electron": "^44.4.5",
+    "electron-builder": "^26.15.3",
     "eslint": "^9.0.0",
     "globals": "^16.0.0",
     "prettier": "^3.8.1",

@@ -3,7 +3,7 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SOURCE="${1:-$ROOT/build/icon.svg}"
-TRAY="$ROOT/build/tray"
+TRAY="$ROOT/assets/tray"
 mkdir -p "$TRAY"
 
 rsvg-convert -w 1024 -h 1024 "$SOURCE" -o "$ROOT/build/icon.png"
@@ -31,4 +31,4 @@ for scale in 1 2; do
   badge "$size" "#ef4444" "$TRAY/call-muted$suffix.png" "$base"
 done
 
-echo "Icons written to build/ and build/tray/"
+echo "Icons written to build/ and assets/tray/"
