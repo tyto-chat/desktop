@@ -1,14 +1,38 @@
 import { describe, expect, it } from "vitest";
 import {
   buildTrayMenu,
+  ENGLISH_TRAY_LABELS,
+  mergeTrayLabels,
+  TRAY_LABEL_KEYS,
   trayIconFor,
   trayTooltipFor,
-  TRAY_LABELS,
   type BadgeState,
+  type TrayLabels,
   type TrayMenuItem,
 } from "../src/main/trayState";
 
 const idle: BadgeState = { unreadCount: 0, callState: "none" };
+const EN = ENGLISH_TRAY_LABELS;
+
+const POLISH: TrayLabels = {
+  open: "Otwórz tyto",
+  mute: "Wycisz",
+  unmute: "Wyłącz wyciszenie",
+  leaveCall: "Opuść rozmowę",
+  snooze: "Wstrzymaj powiadomienia",
+  snooze30: "Na 30 minut",
+  snooze60: "Na godzinę",
+  snoozeIndefinitely: "Do odwołania",
+  snoozeOff: "Włącz powiadomienia ponownie",
+  presence: "Status",
+  presenceOnline: "Dostępny",
+  presenceAway: "Zaraz wracam",
+  presenceDnd: "Nie przeszkadzać",
+  presenceInvisible: "Niewidoczny",
+  startOnBoot: "Uruchamiaj przy starcie systemu",
+  startMinimized: "Uruchamiaj zminimalizowany",
+  quit: "Zakończ",
+};
 
 describe("trayIconFor", () => {
   it.each<[BadgeState, string]>([
@@ -24,27 +48,79 @@ describe("trayIconFor", () => {
 });
 
 describe("trayTooltipFor", () => {
+  it("uses the text the app translated", () => {
+    expect(
+      trayTooltipFor({ unreadCount: 5, callState: "none", tooltip: "5 nieprzeczytanych" }),
+    ).toBe("5 nieprzeczytanych");
+    expect(
+      trayTooltipFor({
+        unreadCount: 0,
+        callState: "in-call",
+        callLabel: "#voice @ Srv",
+        tooltip: "W rozmowie: #voice @ Srv",
+      }),
+    ).toBe("W rozmowie: #voice @ Srv");
+  });
+
   it("names the app when idle", () => {
-    expect(trayTooltipFor(idle, TRAY_LABELS)).toBe("tyto");
+    expect(trayTooltipFor(idle)).toBe("tyto");
   });
 
-  it("counts unread messages", () => {
-    expect(trayTooltipFor({ unreadCount: 1, callState: "none" }, TRAY_LABELS)).toBe("1 unread");
-    expect(trayTooltipFor({ unreadCount: 12, callState: "none" }, TRAY_LABELS)).toBe("12 unread");
+  it("falls back to English when the app sent no text", () => {
+    expect(trayTooltipFor({ unreadCount: 1, callState: "none" })).toBe("1 unread");
+    expect(trayTooltipFor({ unreadCount: 12, callState: "none" })).toBe("12 unread");
+    expect(
+      trayTooltipFor({ unreadCount: 4, callState: "in-call", callLabel: "#voice @ Srv" }),
+    ).toBe("In call: #voice @ Srv");
+    expect(
+      trayTooltipFor({ unreadCount: 0, callState: "in-call-muted", callLabel: "#voice" }),
+    ).toBe("In call (muted): #voice");
+    expect(trayTooltipFor({ unreadCount: 0, callState: "in-call" })).toBe("In call");
   });
 
-  it("prefers the call over unread and names where it is", () => {
-    const state: BadgeState = { unreadCount: 4, callState: "in-call", callLabel: "#voice @ Srv" };
-    expect(trayTooltipFor(state, TRAY_LABELS)).toBe("In call: #voice @ Srv");
+  it("ignores a blank translated text", () => {
+    expect(trayTooltipFor({ unreadCount: 2, callState: "none", tooltip: "  " })).toBe("2 unread");
+  });
+});
+
+describe("mergeTrayLabels", () => {
+  it("takes a complete set as is", () => {
+    expect(mergeTrayLabels(POLISH, EN)).toEqual(POLISH);
   });
 
-  it("says so when muted", () => {
-    const state: BadgeState = { unreadCount: 0, callState: "in-call-muted", callLabel: "#voice" };
-    expect(trayTooltipFor(state, TRAY_LABELS)).toBe("In call (muted): #voice");
+  it("fills every missing label from the fallback", () => {
+    expect(mergeTrayLabels({ quit: "Zakończ" }, EN)).toEqual({ ...EN, quit: "Zakończ" });
   });
 
-  it("copes with a call that has no label", () => {
-    expect(trayTooltipFor({ unreadCount: 0, callState: "in-call" }, TRAY_LABELS)).toBe("In call");
+  it.each([null, undefined, "text", 5, [], true])("keeps the fallback for %j", (received) => {
+    expect(mergeTrayLabels(received, EN)).toEqual(EN);
+  });
+
+  it.each([
+    ["a number", 5],
+    ["an empty string", ""],
+    ["whitespace", "   "],
+    ["an object", { nested: "x" }],
+    ["an overlong string", "x".repeat(121)],
+    ["a line break", "Quit\nnow"],
+  ])("rejects %s for a single label and keeps the rest", (_name, value) => {
+    const merged = mergeTrayLabels({ ...POLISH, quit: value }, EN);
+    expect(merged.quit).toBe(EN.quit);
+    expect(merged.open).toBe(POLISH.open);
+  });
+
+  it("drops keys it does not know", () => {
+    const merged = mergeTrayLabels({ ...POLISH, extra: "x", __proto__: { polluted: "y" } }, EN);
+    expect(Object.keys(merged).sort()).toEqual([...TRAY_LABEL_KEYS].sort());
+    expect(({} as Record<string, unknown>).polluted).toBeUndefined();
+  });
+
+  it("trims surrounding whitespace", () => {
+    expect(mergeTrayLabels({ quit: "  Zakończ  " }, EN).quit).toBe("Zakończ");
+  });
+
+  it("has an English label for every key", () => {
+    expect(Object.keys(EN).sort()).toEqual([...TRAY_LABEL_KEYS].sort());
   });
 });
 
@@ -60,7 +136,7 @@ const settings = { autoLaunch: false, startMinimized: false };
 
 describe("buildTrayMenu", () => {
   it("lists the idle menu in order", () => {
-    expect(labels(buildTrayMenu(idle, settings, TRAY_LABELS))).toEqual([
+    expect(labels(buildTrayMenu(idle, settings, EN))).toEqual([
       "Open tyto",
       "Snooze notifications",
       "Presence",
@@ -70,8 +146,38 @@ describe("buildTrayMenu", () => {
     ]);
   });
 
-  it("offers the three snooze lengths", () => {
-    const snooze = buildTrayMenu(idle, settings, TRAY_LABELS).find(
+  it("uses the labels it is given, in every position", () => {
+    const menu = buildTrayMenu(
+      { unreadCount: 0, callState: "in-call-muted", tooltip: "W rozmowie (wyciszono): #voice" },
+      settings,
+      POLISH,
+    );
+    const shown = labels(flatten(menu));
+
+    expect(shown).toEqual([
+      "Otwórz tyto",
+      "W rozmowie (wyciszono): #voice",
+      "Wyłącz wyciszenie",
+      "Opuść rozmowę",
+      "Wstrzymaj powiadomienia",
+      "Na 30 minut",
+      "Na godzinę",
+      "Do odwołania",
+      "Włącz powiadomienia ponownie",
+      "Status",
+      "Dostępny",
+      "Zaraz wracam",
+      "Nie przeszkadzać",
+      "Niewidoczny",
+      "Uruchamiaj przy starcie systemu",
+      "Uruchamiaj zminimalizowany",
+      "Zakończ",
+    ]);
+    for (const english of Object.values(EN)) expect(shown).not.toContain(english);
+  });
+
+  it("offers the snooze lengths and a way back", () => {
+    const snooze = buildTrayMenu(idle, settings, EN).find(
       (i) => i.label === "Snooze notifications",
     )!;
     expect(snooze.submenu!.map((i) => i.action)).toEqual([
@@ -80,13 +186,10 @@ describe("buildTrayMenu", () => {
       { type: "command", command: { type: "snooze", minutes: null } },
       { type: "command", command: { type: "snooze", minutes: 0 } },
     ]);
-    expect(snooze.submenu!.at(-1)!.label).toBe("Turn notifications back on");
   });
 
   it("offers the four presence states", () => {
-    const presence = buildTrayMenu(idle, settings, TRAY_LABELS).find(
-      (i) => i.label === "Presence",
-    )!;
+    const presence = buildTrayMenu(idle, settings, EN).find((i) => i.label === "Presence")!;
     expect(presence.submenu!.map((i) => i.action)).toEqual(
       ["online", "away", "dnd", "invisible"].map((value) => ({
         type: "command",
@@ -96,16 +199,16 @@ describe("buildTrayMenu", () => {
   });
 
   it("has no call controls outside a call", () => {
-    const actions = flatten(buildTrayMenu(idle, settings, TRAY_LABELS)).map((i) => i.action);
+    const actions = flatten(buildTrayMenu(idle, settings, EN)).map((i) => i.action);
     expect(actions).not.toContainEqual({ type: "command", command: { type: "toggle-mute" } });
     expect(actions).not.toContainEqual({ type: "command", command: { type: "leave-call" } });
   });
 
-  it("adds call controls with the call label while in a call", () => {
+  it("adds call controls with the call headline while in a call", () => {
     const menu = buildTrayMenu(
       { unreadCount: 0, callState: "in-call", callLabel: "#voice @ Srv" },
       settings,
-      TRAY_LABELS,
+      EN,
     );
     expect(labels(menu)).toEqual([
       "Open tyto",
@@ -119,33 +222,22 @@ describe("buildTrayMenu", () => {
       "Quit",
     ]);
     expect(menu.find((i) => i.label === "In call: #voice @ Srv")!.enabled).toBe(false);
-    expect(menu.find((i) => i.label === "Mute")!.action).toEqual({
-      type: "command",
-      command: { type: "toggle-mute" },
-    });
   });
 
   it("offers unmute while muted", () => {
-    const menu = buildTrayMenu(
-      { unreadCount: 0, callState: "in-call-muted" },
-      settings,
-      TRAY_LABELS,
-    );
+    const menu = buildTrayMenu({ unreadCount: 0, callState: "in-call-muted" }, settings, EN);
     expect(labels(menu)).toContain("Unmute");
     expect(labels(menu)).not.toContain("Mute");
   });
 
   it("reflects the two startup settings as checkboxes", () => {
-    const menu = buildTrayMenu(idle, { autoLaunch: true, startMinimized: false }, TRAY_LABELS);
-    const boot = menu.find((i) => i.label === "Start on boot")!;
-    const minimized = menu.find((i) => i.label === "Start minimized")!;
-
-    expect(boot).toMatchObject({
+    const menu = buildTrayMenu(idle, { autoLaunch: true, startMinimized: false }, EN);
+    expect(menu.find((i) => i.label === "Start on boot")).toMatchObject({
       kind: "checkbox",
       checked: true,
       action: { type: "toggle-auto-launch" },
     });
-    expect(minimized).toMatchObject({
+    expect(menu.find((i) => i.label === "Start minimized")).toMatchObject({
       kind: "checkbox",
       checked: false,
       action: { type: "toggle-start-minimized" },
@@ -153,7 +245,7 @@ describe("buildTrayMenu", () => {
   });
 
   it("opens and quits through shell actions, not renderer commands", () => {
-    const menu = buildTrayMenu(idle, settings, TRAY_LABELS);
+    const menu = buildTrayMenu(idle, settings, EN);
     expect(menu[0]!.action).toEqual({ type: "open" });
     expect(menu.at(-1)!.action).toEqual({ type: "quit" });
   });

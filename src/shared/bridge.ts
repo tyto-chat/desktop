@@ -11,6 +11,27 @@ export interface BridgeBadgeState {
   unreadCount: number;
   callState: BridgeCallState;
   callLabel?: string;
+  tooltip?: string;
+}
+
+export interface BridgeTrayLabels {
+  open: string;
+  mute: string;
+  unmute: string;
+  leaveCall: string;
+  snooze: string;
+  snooze30: string;
+  snooze60: string;
+  snoozeIndefinitely: string;
+  snoozeOff: string;
+  presence: string;
+  presenceOnline: string;
+  presenceAway: string;
+  presenceDnd: string;
+  presenceInvisible: string;
+  startOnBoot: string;
+  startMinimized: string;
+  quit: string;
 }
 
 export type BridgePresence = "online" | "away" | "dnd" | "invisible";
@@ -37,6 +58,7 @@ export interface PlatformBridge {
   };
   appState: {
     setBadge(state: BridgeBadgeState): void;
+    setTrayLabels(labels: BridgeTrayLabels): void;
   };
   app: {
     getVersion(): Promise<string>;

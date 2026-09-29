@@ -2,11 +2,13 @@ import type {
   BridgeBadgeState,
   BridgeCallState,
   BridgePresence,
+  BridgeTrayLabels,
   TrayCommand,
 } from "../shared/bridge";
 
 export type CallState = BridgeCallState;
 export type BadgeState = BridgeBadgeState;
+export type TrayLabels = BridgeTrayLabels;
 export type TrayIcon = "idle" | "unread" | "call" | "call-muted";
 
 export interface ShellSettings {
@@ -30,53 +32,75 @@ export interface TrayMenuItem {
   submenu?: TrayMenuItem[];
 }
 
-export interface TrayLabels {
-  idle: string;
-  unread: (count: number) => string;
-  inCall: string;
-  inCallMuted: string;
-  open: string;
-  mute: string;
-  unmute: string;
-  leaveCall: string;
-  snooze: string;
-  snoozeMinutes: (minutes: number) => string;
-  snoozeIndefinitely: string;
-  snoozeOff: string;
-  presence: string;
-  presenceValues: Record<BridgePresence, string>;
-  startOnBoot: string;
-  startMinimized: string;
-  quit: string;
-}
+export const TRAY_LABEL_KEYS = [
+  "open",
+  "mute",
+  "unmute",
+  "leaveCall",
+  "snooze",
+  "snooze30",
+  "snooze60",
+  "snoozeIndefinitely",
+  "snoozeOff",
+  "presence",
+  "presenceOnline",
+  "presenceAway",
+  "presenceDnd",
+  "presenceInvisible",
+  "startOnBoot",
+  "startMinimized",
+  "quit",
+] as const satisfies readonly (keyof TrayLabels)[];
 
-export const TRAY_LABELS: TrayLabels = {
-  idle: "tyto",
-  unread: (count) => `${count} unread`,
-  inCall: "In call",
-  inCallMuted: "In call (muted)",
+export const ENGLISH_TRAY_LABELS: TrayLabels = {
   open: "Open tyto",
   mute: "Mute",
   unmute: "Unmute",
   leaveCall: "Leave call",
   snooze: "Snooze notifications",
-  snoozeMinutes: (minutes) => (minutes === 60 ? "For 1 hour" : `For ${minutes} minutes`),
+  snooze30: "For 30 minutes",
+  snooze60: "For 1 hour",
   snoozeIndefinitely: "Until I turn them back on",
   snoozeOff: "Turn notifications back on",
   presence: "Presence",
-  presenceValues: {
-    online: "Online",
-    away: "Away",
-    dnd: "Do not disturb",
-    invisible: "Invisible",
-  },
+  presenceOnline: "Online",
+  presenceAway: "Away",
+  presenceDnd: "Do not disturb",
+  presenceInvisible: "Invisible",
   startOnBoot: "Start on boot",
   startMinimized: "Start minimized",
   quit: "Quit",
 };
 
-const SNOOZE_MINUTES = [30, 60] as const;
-const PRESENCE_ORDER: readonly BridgePresence[] = ["online", "away", "dnd", "invisible"];
+const APP_NAME = "tyto";
+const MAX_LABEL_LENGTH = 120;
+
+const PRESENCE_LABEL_KEYS: readonly [BridgePresence, keyof TrayLabels][] = [
+  ["online", "presenceOnline"],
+  ["away", "presenceAway"],
+  ["dnd", "presenceDnd"],
+  ["invisible", "presenceInvisible"],
+];
+
+function usableLabel(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "" || trimmed.length > MAX_LABEL_LENGTH || /[\r\n]/.test(trimmed)) return null;
+  return trimmed;
+}
+
+export function mergeTrayLabels(received: unknown, fallback: TrayLabels): TrayLabels {
+  const source =
+    received !== null && typeof received === "object" && !Array.isArray(received)
+      ? (received as Record<string, unknown>)
+      : {};
+  const merged = { ...fallback };
+  for (const key of TRAY_LABEL_KEYS) {
+    const label = Object.hasOwn(source, key) ? usableLabel(source[key]) : null;
+    if (label !== null) merged[key] = label;
+  }
+  return merged;
+}
 
 export function trayIconFor(state: BadgeState): TrayIcon {
   if (state.callState === "in-call-muted") return "call-muted";
@@ -84,14 +108,17 @@ export function trayIconFor(state: BadgeState): TrayIcon {
   return state.unreadCount > 0 ? "unread" : "idle";
 }
 
-function callHeadline(state: BadgeState, labels: TrayLabels): string {
-  const prefix = state.callState === "in-call-muted" ? labels.inCallMuted : labels.inCall;
-  return state.callLabel ? `${prefix}: ${state.callLabel}` : prefix;
+function englishTooltip(state: BadgeState): string {
+  if (state.callState !== "none") {
+    const prefix = state.callState === "in-call-muted" ? "In call (muted)" : "In call";
+    return state.callLabel ? `${prefix}: ${state.callLabel}` : prefix;
+  }
+  return `${state.unreadCount} unread`;
 }
 
-export function trayTooltipFor(state: BadgeState, labels: TrayLabels): string {
-  if (state.callState !== "none") return callHeadline(state, labels);
-  return state.unreadCount > 0 ? labels.unread(state.unreadCount) : labels.idle;
+export function trayTooltipFor(state: BadgeState): string {
+  if (state.callState === "none" && state.unreadCount === 0) return APP_NAME;
+  return usableLabel(state.tooltip) ?? englishTooltip(state);
 }
 
 function command(label: string, value: TrayCommand): TrayMenuItem {
@@ -109,7 +136,7 @@ export function buildTrayMenu(
   if (state.callState !== "none") {
     menu.push(
       separator,
-      { kind: "item", label: callHeadline(state, labels), enabled: false },
+      { kind: "item", label: trayTooltipFor(state), enabled: false },
       command(state.callState === "in-call-muted" ? labels.unmute : labels.mute, {
         type: "toggle-mute",
       }),
@@ -123,9 +150,8 @@ export function buildTrayMenu(
       kind: "submenu",
       label: labels.snooze,
       submenu: [
-        ...SNOOZE_MINUTES.map((minutes) =>
-          command(labels.snoozeMinutes(minutes), { type: "snooze", minutes }),
-        ),
+        command(labels.snooze30, { type: "snooze", minutes: 30 }),
+        command(labels.snooze60, { type: "snooze", minutes: 60 }),
         command(labels.snoozeIndefinitely, { type: "snooze", minutes: null }),
         command(labels.snoozeOff, { type: "snooze", minutes: 0 }),
       ],
@@ -133,8 +159,8 @@ export function buildTrayMenu(
     {
       kind: "submenu",
       label: labels.presence,
-      submenu: PRESENCE_ORDER.map((value) =>
-        command(labels.presenceValues[value], { type: "presence", value }),
+      submenu: PRESENCE_LABEL_KEYS.map(([value, key]) =>
+        command(labels[key], { type: "presence", value }),
       ),
     },
     separator,
