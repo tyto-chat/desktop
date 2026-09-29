@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { preferredPasswordStore } from "../src/main/passwordStore";
 
-const linux = { platform: "linux", explicit: false };
+const linux = { platform: "linux", explicit: false, weakBackendAllowed: false };
 
 describe("preferredPasswordStore", () => {
   it.each(["Hyprland", "sway", "i3", "niri", "river", "bspwm", "wlroots", "", undefined])(
@@ -33,13 +33,17 @@ describe("preferredPasswordStore", () => {
     expect(preferredPasswordStore({ ...linux, desktop: "sway:wlroots" })).toBe("gnome-libsecret");
   });
 
-  it("never overrides a store the user chose on the command line", () => {
+  it("leaves the choice to Chromium when a development run accepts weak backends", () => {
     expect(
-      preferredPasswordStore({ platform: "linux", desktop: "Hyprland", explicit: true }),
+      preferredPasswordStore({ ...linux, desktop: undefined, weakBackendAllowed: true }),
     ).toBeNull();
   });
 
+  it("never overrides a store the user chose on the command line", () => {
+    expect(preferredPasswordStore({ ...linux, desktop: "Hyprland", explicit: true })).toBeNull();
+  });
+
   it.each(["darwin", "win32"])("does nothing on %s", (platform) => {
-    expect(preferredPasswordStore({ platform, desktop: "Hyprland", explicit: false })).toBeNull();
+    expect(preferredPasswordStore({ ...linux, platform, desktop: "Hyprland" })).toBeNull();
   });
 });
