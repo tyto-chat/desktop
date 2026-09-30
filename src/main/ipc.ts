@@ -1,3 +1,4 @@
+import { parseWindowTheme, type WindowTheme } from "./windowChrome";
 import type { BridgeBadgeState, BridgeNotification } from "../shared/bridge";
 
 export const BRIDGE_CHANNELS = {
@@ -13,6 +14,7 @@ export const BRIDGE_CHANNELS = {
   notificationsShow: "bridge:notifications:show",
   appStateSetBadge: "bridge:appState:setBadge",
   appStateSetTrayLabels: "bridge:appState:setTrayLabels",
+  appStateSetWindowTheme: "bridge:appState:setWindowTheme",
 } as const;
 
 export const RENDERER_CHANNELS = {
@@ -51,6 +53,7 @@ export interface BridgeIpcDeps {
   showNotification(notification: BridgeNotification): void;
   setBadge(state: BridgeBadgeState): void;
   setTrayLabels(labels: Record<string, unknown>): void;
+  setWindowTheme(theme: WindowTheme): void;
   deepLinksReady(): void;
 }
 
@@ -143,5 +146,9 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
     if (value !== null && typeof value === "object" && !Array.isArray(value)) {
       deps.setTrayLabels(value as Record<string, unknown>);
     }
+  });
+  listen(BRIDGE_CHANNELS.appStateSetWindowTheme, (value) => {
+    const theme = parseWindowTheme(value);
+    if (theme) deps.setWindowTheme(theme);
   });
 }

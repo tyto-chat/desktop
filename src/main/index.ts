@@ -16,6 +16,7 @@ import { ENGLISH_TRAY_LABELS, mergeTrayLabels, type TrayAction } from "./traySta
 import { startAutoUpdates } from "./updater";
 import { resolveUserDataDir } from "./userData";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
+import { DEFAULT_WINDOW_THEME, overlayUpdate } from "./windowChrome";
 
 const APP_ID = "chat.tyto.desktop";
 
@@ -95,6 +96,13 @@ function startApp(): void {
       shellSettings.saveTrayLabels({ ...labels });
       tray?.setLabels(labels);
     },
+    setWindowTheme: (theme) => {
+      shellSettings.saveWindowTheme(theme);
+      const overlay = overlayUpdate(process.platform, theme);
+      if (overlay && mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.setTitleBarOverlay(overlay);
+      }
+    },
     deepLinksReady: () => deepLinks.markReady(),
   });
 
@@ -107,6 +115,7 @@ function startApp(): void {
 
   registerAppProtocol(join(__dirname, "..", "renderer"));
   mainWindow = createMainWindow({
+    theme: shellSettings.readWindowTheme() ?? DEFAULT_WINDOW_THEME,
     startHidden: shellSettings.read().startMinimized,
     shouldReallyClose: () => isQuitting,
   });

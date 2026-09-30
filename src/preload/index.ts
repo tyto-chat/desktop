@@ -26,6 +26,7 @@ const bridge: PlatformBridge = {
   appState: {
     setBadge: (state) => ipcRenderer.send("bridge:appState:setBadge", state),
     setTrayLabels: (labels) => ipcRenderer.send("bridge:appState:setTrayLabels", labels),
+    setWindowTheme: (theme) => ipcRenderer.send("bridge:appState:setWindowTheme", theme),
   },
   app: {
     getVersion: () => ipcRenderer.invoke("bridge:app:getVersion"),

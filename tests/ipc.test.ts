@@ -32,6 +32,7 @@ function makeDeps(): BridgeIpcDeps {
     showNotification: vi.fn(),
     setBadge: vi.fn(),
     setTrayLabels: vi.fn(),
+    setWindowTheme: vi.fn(),
     deepLinksReady: vi.fn(),
   };
 }
@@ -110,6 +111,22 @@ describe("registerBridgeIpc", () => {
     },
   );
 
+  it("passes valid window colours on", () => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetWindowTheme)!(TRUSTED, {
+      color: "#1e1f26",
+      symbolColor: "#9aa0ad",
+    });
+    expect(deps.setWindowTheme).toHaveBeenCalledWith({ color: "#1e1f26", symbolColor: "#9aa0ad" });
+  });
+
+  it.each([[null], ["#1e1f26"], [{ color: "red", symbolColor: "#9aa0ad" }]])(
+    "drops window colours that are not two hex values: %j",
+    (value) => {
+      listeners.get(BRIDGE_CHANNELS.appStateSetWindowTheme)!(TRUSTED, value);
+      expect(deps.setWindowTheme).not.toHaveBeenCalled();
+    },
+  );
+
   it("carries the translated tooltip with the badge state", () => {
     listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {
       unreadCount: 3,
@@ -147,6 +164,7 @@ describe("registerBridgeIpc", () => {
     expect(deps.showNotification).not.toHaveBeenCalled();
     expect(deps.setBadge).not.toHaveBeenCalled();
     expect(deps.setTrayLabels).not.toHaveBeenCalled();
+    expect(deps.setWindowTheme).not.toHaveBeenCalled();
     expect(deps.deepLinksReady).not.toHaveBeenCalled();
   });
 
