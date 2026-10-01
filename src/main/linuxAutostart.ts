@@ -1,9 +1,9 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
-import { join } from "node:path";
+import { posix } from "node:path";
 
 export function autostartDir(env: NodeJS.ProcessEnv = process.env): string {
-  return join(env.XDG_CONFIG_HOME || join(homedir(), ".config"), "autostart");
+  return posix.join(env.XDG_CONFIG_HOME || posix.join(homedir(), ".config"), "autostart");
 }
 
 export function launchCommand(env: NodeJS.ProcessEnv, execPath: string): string {
@@ -33,7 +33,7 @@ export function setLinuxAutostart(
   env: NodeJS.ProcessEnv = process.env,
   execPath: string = process.execPath,
 ): void {
-  const file = join(autostartDir(env), "tyto.desktop");
+  const file = posix.join(autostartDir(env), "tyto.desktop");
   if (!enabled) {
     rmSync(file, { force: true });
     return;
