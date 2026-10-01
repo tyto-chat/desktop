@@ -5,6 +5,7 @@ import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
 import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
+import { setLinuxAutostart } from "./linuxAutostart";
 import { originOf } from "./navigationPolicy";
 import { showNativeNotification } from "./notifications";
 import { preferredPasswordStore } from "./passwordStore";
@@ -52,7 +53,8 @@ function startApp(): void {
   const shellSettings = new ShellSettingsStore(userData);
 
   const setAutoLaunch = (enabled: boolean) => {
-    app.setLoginItemSettings({ openAtLogin: enabled });
+    if (process.platform === "linux") setLinuxAutostart(enabled);
+    else app.setLoginItemSettings({ openAtLogin: enabled });
     tray?.setSettings(shellSettings.update({ autoLaunch: enabled }));
   };
 
