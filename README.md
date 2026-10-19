@@ -57,8 +57,18 @@ bundled client means changing that file and releasing a new desktop version.
 3. Commit, then tag the commit `v<version>` and push the tag.
 
 The release workflow builds installers for all three platforms and publishes them to the GitHub
-release for that tag. A platform without a signing certificate is still built, unsigned, and its
+release for that tag. A platform without signing credentials is still built, unsigned, and its
 release is marked as a prerelease.
+
+## Code signing policy
+
+Free code signing on Windows is provided by [SignPath.io](https://signpath.io), with a certificate
+issued by the [SignPath Foundation](https://signpath.org).
+
+Signed Windows builds are produced only by the release workflow in this repository, from a tagged
+commit, on GitHub-hosted runners. Every signing request is approved by hand. The full policy, the
+team roles and the privacy statement are at
+[tyto.chat/docs/code-signing](https://tyto.chat/docs/code-signing).
 
 ## Security
 

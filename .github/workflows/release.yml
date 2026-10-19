@@ -23,7 +23,10 @@ jobs:
             platform: linux
             targets: --linux
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
+    timeout-minutes: 150
+    permissions:
+      contents: read
+      actions: read
     defaults:
       run:
         shell: bash
@@ -76,33 +79,110 @@ jobs:
         id: signing
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
+          SIGNPATH_API_TOKEN: ${{ secrets.SIGNPATH_API_TOKEN }}
+          SIGNPATH_ORGANIZATION_ID: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
           PLATFORM: ${{ matrix.platform }}
         run: |
           SIGNED=true
           if [ "$PLATFORM" = "mac" ] && [ -z "$CSC_LINK" ]; then SIGNED=false; fi
-          if [ "$PLATFORM" = "win" ] && [ -z "$WIN_CSC_LINK" ]; then SIGNED=false; fi
+          if [ "$PLATFORM" = "win" ] && { [ -z "$SIGNPATH_API_TOKEN" ] || [ -z "$SIGNPATH_ORGANIZATION_ID" ]; }; then SIGNED=false; fi
           echo "signed=$SIGNED" >> "$GITHUB_OUTPUT"
           if [ "$SIGNED" = "false" ]; then
             mkdir -p dist
             touch "dist/UNSIGNED-$PLATFORM"
-            echo "::warning::No signing certificate for $PLATFORM. This installer is UNSIGNED."
+            echo "::warning::No signing credentials for $PLATFORM. This installer is UNSIGNED."
           fi
 
-      - name: Package (signed)
-        if: steps.signing.outputs.signed == 'true'
-        run: npx electron-builder ${{ matrix.targets }} --publish never
+      - name: Package macOS (signed)
+        if: matrix.platform == 'mac' && steps.signing.outputs.signed == 'true'
+        run: npx electron-builder --mac --publish never
         env:
           CSC_LINK: ${{ secrets.CSC_LINK }}
           CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
-          WIN_CSC_LINK: ${{ secrets.WIN_CSC_LINK }}
-          WIN_CSC_KEY_PASSWORD: ${{ secrets.WIN_CSC_KEY_PASSWORD }}
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
 
+      - name: Package the Windows app, unsigned
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        run: |
+          npx electron-builder --win --dir --publish never
+          mkdir -p dist/signing/app/resources
+          cp dist/win-unpacked/Tyto.exe dist/signing/app/
+          if [ -e dist/win-unpacked/resources/elevate.exe ]; then
+            cp dist/win-unpacked/resources/elevate.exe dist/signing/app/resources/
+          fi
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload the Windows app for signing
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        id: upload-app
+        uses: actions/upload-artifact@v4
+        with:
+          name: signing-windows-app
+          path: dist/signing/app
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the Windows app (waits for approval in SignPath)
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: tyto-desktop
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: windows-app
+          github-artifact-id: ${{ steps.upload-app.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist/signing/app-signed
+
+      - name: Package the Windows installer from the signed app
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        run: |
+          cp -R dist/signing/app-signed/. dist/win-unpacked/
+          pwsh scripts/assert-signed.ps1 dist/win-unpacked/Tyto.exe
+          npx electron-builder --win --prepackaged dist/win-unpacked --publish never
+          pwsh scripts/assert-signed.ps1 dist/win-unpacked/Tyto.exe
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+
+      - name: Upload the Windows installer for signing
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        id: upload-installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: signing-windows-installer
+          path: dist/tyto-*.exe
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Sign the Windows installer (waits for approval in SignPath)
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        uses: signpath/github-action-submit-signing-request@f6d04783b4569d051e0c80105fe66e82819d0092 # v3.0
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: tyto-desktop
+          signing-policy-slug: release-signing
+          artifact-configuration-slug: windows-installer
+          github-artifact-id: ${{ steps.upload-installer.outputs.artifact-id }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 3600
+          output-artifact-directory: dist/signing/installer-signed
+
+      - name: Put the signed installer in place and refresh the update feed
+        if: matrix.platform == 'win' && steps.signing.outputs.signed == 'true'
+        run: |
+          cp dist/signing/installer-signed/*.exe dist/
+          pwsh scripts/assert-signed.ps1 dist/tyto-*.exe
+          node scripts/refresh-update-feed.js dist/tyto-*.exe
+          rm -rf dist/signing
+
       - name: Package (unsigned)
-        if: steps.signing.outputs.signed != 'true'
+        if: matrix.platform == 'linux' || steps.signing.outputs.signed != 'true'
         run: npx electron-builder ${{ matrix.targets }} --publish never
         env:
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
