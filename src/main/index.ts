@@ -13,7 +13,8 @@ import { registerAppProtocol, registerAppScheme } from "./protocol";
 import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
 import { createTray, type TrayController } from "./tray";
-import { ENGLISH_TRAY_LABELS, mergeTrayLabels, type TrayAction } from "./trayState";
+import { bundledTrayLabels, readTrayLabelBundle } from "./trayLabels";
+import { mergeTrayLabels, type TrayAction } from "./trayState";
 import { startAutoUpdates } from "./updater";
 import { resolveUserDataDir } from "./userData";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
@@ -51,6 +52,10 @@ function startApp(): void {
   const appOrigin = resolveAppOrigin();
   const userData = app.getPath("userData");
   const shellSettings = new ShellSettingsStore(userData);
+  const defaultTrayLabels = bundledTrayLabels(
+    readTrayLabelBundle(join(__dirname, "..", "tray-labels.json")),
+    app.getPreferredSystemLanguages(),
+  );
 
   const setAutoLaunch = (enabled: boolean) => {
     if (process.platform === "linux") setLinuxAutostart(enabled);
@@ -94,7 +99,7 @@ function startApp(): void {
       }),
     setBadge: (state) => tray?.setBadge(state),
     setTrayLabels: (received) => {
-      const labels = mergeTrayLabels(received, ENGLISH_TRAY_LABELS);
+      const labels = mergeTrayLabels(received, defaultTrayLabels);
       shellSettings.saveTrayLabels({ ...labels });
       tray?.setLabels(labels);
     },
@@ -111,7 +116,7 @@ function startApp(): void {
   tray = createTray({
     iconDir: join(__dirname, "..", "..", "assets", "tray"),
     settings: shellSettings.read(),
-    labels: mergeTrayLabels(shellSettings.readTrayLabels(), ENGLISH_TRAY_LABELS),
+    labels: mergeTrayLabels(shellSettings.readTrayLabels(), defaultTrayLabels),
     onAction: onTrayAction,
   });
 
