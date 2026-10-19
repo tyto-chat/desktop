@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from "electron";
+import { app, BrowserWindow, ipcMain, safeStorage, session } from "electron";
 import { join } from "node:path";
 import { ConfigStore } from "./configStore";
 import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
@@ -6,6 +6,7 @@ import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
 import { setLinuxAutostart } from "./linuxAutostart";
+import { installMediaAuth } from "./mediaAuth";
 import { originOf } from "./navigationPolicy";
 import { showNativeNotification } from "./notifications";
 import { preferredPasswordStore } from "./passwordStore";
@@ -85,6 +86,8 @@ function startApp(): void {
     }
   };
 
+  const mediaAuth = installMediaAuth(session.defaultSession);
+
   registerBridgeIpc(ipcMain, {
     isTrustedSender: (event) => senderOrigin(event) === appOrigin,
     secrets: new SecretStore(userData, safeStorage),
@@ -103,6 +106,7 @@ function startApp(): void {
       shellSettings.saveTrayLabels({ ...labels });
       tray?.setLabels(labels);
     },
+    setMediaAuth: (auth) => mediaAuth.set(auth),
     setWindowTheme: (theme) => {
       shellSettings.saveWindowTheme(theme);
       const overlay = overlayUpdate(process.platform, theme);
