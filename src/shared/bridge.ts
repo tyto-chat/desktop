@@ -32,6 +32,15 @@ export interface BridgeTrayLabels {
   startOnBoot: string;
   startMinimized: string;
   quit: string;
+  contextCut: string;
+  contextCopy: string;
+  contextPaste: string;
+  contextSelectAll: string;
+  contextOpenLink: string;
+  contextCopyLink: string;
+  contextCopyImage: string;
+  contextCopyImageAddress: string;
+  contextAddToDictionary: string;
 }
 
 export type BridgePresence = "online" | "away" | "dnd" | "invisible";

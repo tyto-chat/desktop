@@ -19,9 +19,22 @@ const TRAY_LABEL_KEYS = [
   "startOnBoot",
   "startMinimized",
   "quit",
+  "contextCut",
+  "contextCopy",
+  "contextPaste",
+  "contextSelectAll",
+  "contextOpenLink",
+  "contextCopyLink",
+  "contextCopyImage",
+  "contextCopyImageAddress",
+  "contextAddToDictionary",
 ];
 
-const clientKey = (key) => `tray_${key.replace(/([A-Z]|\d+)/g, "_$1").toLowerCase()}`;
+const snake = (key) => key.replace(/([A-Z]|\d+)/g, "_$1").toLowerCase();
+const clientKey = (key) =>
+  key.startsWith("context")
+    ? `context_${snake(key.charAt(7).toLowerCase() + key.slice(8))}`
+    : `tray_${snake(key)}`;
 
 function extract(localesDir) {
   const bundle = {};

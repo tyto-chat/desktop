@@ -50,6 +50,15 @@ export const TRAY_LABEL_KEYS = [
   "startOnBoot",
   "startMinimized",
   "quit",
+  "contextCut",
+  "contextCopy",
+  "contextPaste",
+  "contextSelectAll",
+  "contextOpenLink",
+  "contextCopyLink",
+  "contextCopyImage",
+  "contextCopyImageAddress",
+  "contextAddToDictionary",
 ] as const satisfies readonly (keyof TrayLabels)[];
 
 export const ENGLISH_TRAY_LABELS: TrayLabels = {
@@ -70,6 +79,15 @@ export const ENGLISH_TRAY_LABELS: TrayLabels = {
   startOnBoot: "Start on boot",
   startMinimized: "Start minimized",
   quit: "Quit",
+  contextCut: "Cut",
+  contextCopy: "Copy",
+  contextPaste: "Paste",
+  contextSelectAll: "Select all",
+  contextOpenLink: "Open link in browser",
+  contextCopyLink: "Copy link",
+  contextCopyImage: "Copy image",
+  contextCopyImageAddress: "Copy image address",
+  contextAddToDictionary: "Add to dictionary",
 };
 
 const APP_NAME = "Tyto";

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, ipcMain, safeStorage, session } from "electron";
 import { join } from "node:path";
 import { ConfigStore } from "./configStore";
+import { installContextMenu } from "./contextMenu";
 import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
 import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
@@ -58,6 +59,7 @@ function startApp(): void {
     app.getPreferredSystemLanguages(),
   );
 
+  let shellLabels = mergeTrayLabels(shellSettings.readTrayLabels(), defaultTrayLabels);
   const setAutoLaunch = (enabled: boolean) => {
     if (process.platform === "linux") setLinuxAutostart(enabled);
     else app.setLoginItemSettings({ openAtLogin: enabled });
@@ -102,9 +104,9 @@ function startApp(): void {
       }),
     setBadge: (state) => tray?.setBadge(state),
     setTrayLabels: (received) => {
-      const labels = mergeTrayLabels(received, defaultTrayLabels);
-      shellSettings.saveTrayLabels({ ...labels });
-      tray?.setLabels(labels);
+      shellLabels = mergeTrayLabels(received, defaultTrayLabels);
+      shellSettings.saveTrayLabels({ ...shellLabels });
+      tray?.setLabels(shellLabels);
     },
     setMediaAuth: (auth) => mediaAuth.set(auth),
     setWindowTheme: (theme) => {
@@ -120,7 +122,7 @@ function startApp(): void {
   tray = createTray({
     iconDir: join(__dirname, "..", "..", "assets", "tray"),
     settings: shellSettings.read(),
-    labels: mergeTrayLabels(shellSettings.readTrayLabels(), defaultTrayLabels),
+    labels: shellLabels,
     onAction: onTrayAction,
   });
 
@@ -137,6 +139,7 @@ function startApp(): void {
 
 app.setPath(
   "userData",
+  installContextMenu(mainWindow.webContents, () => shellLabels);
   resolveUserDataDir({
     appData: app.getPath("appData"),
     isPackaged: app.isPackaged,

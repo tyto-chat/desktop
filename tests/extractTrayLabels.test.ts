@@ -29,6 +29,15 @@ const fullEnglish = {
   tray_start_on_boot: "Start on boot",
   tray_start_minimized: "Start minimized",
   tray_quit: "Quit",
+  context_cut: "Cut",
+  context_copy: "Copy",
+  context_paste: "Paste",
+  context_select_all: "Select all",
+  context_open_link: "Open link in browser",
+  context_copy_link: "Copy link",
+  context_copy_image: "Copy image",
+  context_copy_image_address: "Copy image address",
+  context_add_to_dictionary: "Add to dictionary",
 };
 
 describe("extract-tray-labels.js", () => {
