@@ -32,6 +32,15 @@ const POLISH: TrayLabels = {
   startOnBoot: "Uruchamiaj przy starcie systemu",
   startMinimized: "Uruchamiaj zminimalizowany",
   quit: "Zakończ",
+  contextCut: "Wytnij",
+  contextCopy: "Kopiuj",
+  contextPaste: "Wklej",
+  contextSelectAll: "Zaznacz wszystko",
+  contextOpenLink: "Otwórz link w przeglądarce",
+  contextCopyLink: "Kopiuj link",
+  contextCopyImage: "Kopiuj obraz",
+  contextCopyImageAddress: "Kopiuj adres obrazu",
+  contextAddToDictionary: "Dodaj do słownika",
 };
 
 describe("trayIconFor", () => {

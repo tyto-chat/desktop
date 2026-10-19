@@ -33,6 +33,11 @@ function makeDeps(): BridgeIpcDeps {
     setBadge: vi.fn(),
     setTrayLabels: vi.fn(),
     setWindowTheme: vi.fn(),
+    setMediaAuth: vi.fn(),
+    spellCheck: {
+      get: vi.fn().mockReturnValue({ available: ["en-US", "pl"], enabled: ["en-US"] }),
+      set: vi.fn().mockReturnValue({ available: ["en-US", "pl"], enabled: ["pl"] }),
+    },
     deepLinksReady: vi.fn(),
   };
 }
@@ -126,6 +131,51 @@ describe("registerBridgeIpc", () => {
       expect(deps.setWindowTheme).not.toHaveBeenCalled();
     },
   );
+
+  it("reads and sets spell check languages, rejecting malformed lists", async () => {
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckGet, TRUSTED)).resolves.toEqual({
+      available: ["en-US", "pl"],
+      enabled: ["en-US"],
+    });
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, ["pl"])).resolves.toEqual({
+      available: ["en-US", "pl"],
+      enabled: ["pl"],
+    });
+    expect(deps.spellCheck.set).toHaveBeenCalledWith(["pl"]);
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, "pl")).rejects.toThrow();
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, ["p l"])).rejects.toThrow();
+  });
+
+  it("passes a media token for an http(s) origin on, including clearing it", () => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetMediaAuth)!(TRUSTED, {
+      origin: "https://chat.example",
+      token: "abc.def",
+    });
+    listeners.get(BRIDGE_CHANNELS.appStateSetMediaAuth)!(TRUSTED, {
+      origin: "https://chat.example",
+      token: null,
+    });
+    expect(deps.setMediaAuth).toHaveBeenNthCalledWith(1, {
+      origin: "https://chat.example",
+      token: "abc.def",
+    });
+    expect(deps.setMediaAuth).toHaveBeenNthCalledWith(2, {
+      origin: "https://chat.example",
+      token: null,
+    });
+  });
+
+  it.each([
+    [null],
+    [{ origin: "chat.example", token: "abc" }],
+    [{ origin: "https://chat.example/path", token: "abc" }],
+    [{ origin: "https://chat.example", token: "" }],
+    [{ origin: "https://chat.example", token: 42 }],
+    [{ origin: "https://chat.example", token: "x".repeat(8_193) }],
+  ])("drops malformed media auth: %j", (value) => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetMediaAuth)!(TRUSTED, value);
+    expect(deps.setMediaAuth).not.toHaveBeenCalled();
+  });
 
   it("carries the translated tooltip with the badge state", () => {
     listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {

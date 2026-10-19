@@ -1,5 +1,11 @@
 import { parseWindowTheme, type WindowTheme } from "./windowChrome";
-import type { BridgeBadgeState, BridgeNotification } from "../shared/bridge";
+import { isLanguageList } from "./spellCheck";
+import type {
+  BridgeBadgeState,
+  BridgeMediaAuth,
+  BridgeNotification,
+  BridgeSpellCheck,
+} from "../shared/bridge";
 
 export const BRIDGE_CHANNELS = {
   secretsGet: "bridge:secrets:get",
@@ -15,6 +21,9 @@ export const BRIDGE_CHANNELS = {
   appStateSetBadge: "bridge:appState:setBadge",
   appStateSetTrayLabels: "bridge:appState:setTrayLabels",
   appStateSetWindowTheme: "bridge:appState:setWindowTheme",
+  appStateSetMediaAuth: "bridge:appState:setMediaAuth",
+  spellCheckGet: "bridge:spellCheck:get",
+  spellCheckSet: "bridge:spellCheck:set",
 } as const;
 
 export const RENDERER_CHANNELS = {
@@ -31,6 +40,9 @@ const MAX_TAG_LENGTH = 256;
 const MAX_PAYLOAD_LENGTH = 8_192;
 const MAX_CALL_LABEL_LENGTH = 256;
 const MAX_TOOLTIP_LENGTH = 512;
+const MAX_ORIGIN_LENGTH = 512;
+const MAX_TOKEN_LENGTH = 8_192;
+const HTTP_ORIGIN = /^https?:\/\/[^/\s?#]+$/;
 
 const CALL_STATES: readonly unknown[] = ["none", "in-call", "in-call-muted"];
 
@@ -54,6 +66,8 @@ export interface BridgeIpcDeps {
   setBadge(state: BridgeBadgeState): void;
   setTrayLabels(labels: Record<string, unknown>): void;
   setWindowTheme(theme: WindowTheme): void;
+  setMediaAuth(auth: BridgeMediaAuth): void;
+  spellCheck: { get(): BridgeSpellCheck; set(languages: string[]): BridgeSpellCheck };
   deepLinksReady(): void;
 }
 
@@ -78,6 +92,14 @@ function parseNotification(value: unknown): BridgeNotification | null {
     return null;
   }
   return { title, body, tag, payload };
+}
+
+function parseMediaAuth(value: unknown): BridgeMediaAuth | null {
+  if (value === null || typeof value !== "object") return null;
+  const { origin, token } = value as Record<string, unknown>;
+  if (!text(origin, MAX_ORIGIN_LENGTH, false) || !HTTP_ORIGIN.test(origin)) return null;
+  if (token !== null && !text(token, MAX_TOKEN_LENGTH, false)) return null;
+  return { origin, token };
 }
 
 function parseBadgeState(value: unknown): BridgeBadgeState | null {
@@ -127,6 +149,11 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
     deps.config.set(requireText(json, MAX_CONFIG_LENGTH)),
   );
   handle(BRIDGE_CHANNELS.appGetVersion, () => deps.getVersion());
+  handle(BRIDGE_CHANNELS.spellCheckGet, () => deps.spellCheck.get());
+  handle(BRIDGE_CHANNELS.spellCheckSet, (languages) => {
+    if (!isLanguageList(languages)) throw new Error("invalid bridge argument");
+    return deps.spellCheck.set(languages);
+  });
   handle(BRIDGE_CHANNELS.appSetAutoLaunch, (enabled) => {
     if (typeof enabled !== "boolean") throw new Error("invalid bridge argument");
     deps.setAutoLaunch(enabled);
@@ -150,5 +177,9 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
   listen(BRIDGE_CHANNELS.appStateSetWindowTheme, (value) => {
     const theme = parseWindowTheme(value);
     if (theme) deps.setWindowTheme(theme);
+  });
+  listen(BRIDGE_CHANNELS.appStateSetMediaAuth, (value) => {
+    const auth = parseMediaAuth(value);
+    if (auth) deps.setMediaAuth(auth);
   });
 }

@@ -40,5 +40,6 @@ rm -rf "$OUT"
 mkdir -p "$OUT"
 cp -R "$WORK/dist/." "$OUT/"
 git -C "$WORK" rev-parse HEAD > "$OUT/.client-commit"
+node "$ROOT/scripts/extract-tray-labels.js" "$WORK/src/locales" "$ROOT/app/tray-labels.json"
 
 echo "→ Renderer ready in app/renderer ($(cat "$OUT/.client-commit"))"

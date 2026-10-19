@@ -7,6 +7,7 @@
   "author": "tyto.chat",
   "license": "MIT",
   "private": true,
+  "desktopName": "tyto.desktop",
   "main": "app/main/index.js",
   "engines": {
     "node": ">=22.12.0"

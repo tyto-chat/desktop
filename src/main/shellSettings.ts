@@ -38,6 +38,18 @@ export class ShellSettingsStore {
     this.save({ ...this.load(), trayLabels });
   }
 
+  readSpellCheckLanguages(): string[] | null {
+    const { spellCheckLanguages } = this.load();
+    return Array.isArray(spellCheckLanguages) &&
+      spellCheckLanguages.every((entry) => typeof entry === "string")
+      ? (spellCheckLanguages as string[])
+      : null;
+  }
+
+  saveSpellCheckLanguages(spellCheckLanguages: string[]): void {
+    this.save({ ...this.load(), spellCheckLanguages });
+  }
+
   readWindowTheme(): WindowTheme | null {
     return parseWindowTheme(this.load().windowTheme);
   }

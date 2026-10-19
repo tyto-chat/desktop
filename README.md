@@ -60,6 +60,10 @@ The release workflow builds installers for all three platforms and publishes the
 release for that tag. A platform without a signing certificate is still built, unsigned, and its
 release is marked as a prerelease.
 
+Windows and macOS builds are currently unsigned, so SmartScreen and Gatekeeper warn on first run.
+We are working on code signing; the policy that will apply once builds are signed is at
+<https://tyto.chat/docs/code-signing>.
+
 ## Security
 
 The page runs sandboxed with context isolation and no Node.js access. The preload script is the only

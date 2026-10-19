@@ -1,19 +1,23 @@
-import { app, BrowserWindow, ipcMain, safeStorage } from "electron";
+import { app, BrowserWindow, ipcMain, safeStorage, session } from "electron";
 import { join } from "node:path";
 import { ConfigStore } from "./configStore";
+import { installContextMenu } from "./contextMenu";
 import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
 import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
 import { setLinuxAutostart } from "./linuxAutostart";
+import { installMediaAuth } from "./mediaAuth";
 import { originOf } from "./navigationPolicy";
 import { showNativeNotification } from "./notifications";
 import { preferredPasswordStore } from "./passwordStore";
 import { registerAppProtocol, registerAppScheme } from "./protocol";
 import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
+import { createSpellCheck } from "./spellCheck";
 import { createTray, type TrayController } from "./tray";
-import { ENGLISH_TRAY_LABELS, mergeTrayLabels, type TrayAction } from "./trayState";
+import { bundledTrayLabels, readTrayLabelBundle } from "./trayLabels";
+import { mergeTrayLabels, type TrayAction } from "./trayState";
 import { startAutoUpdates } from "./updater";
 import { resolveUserDataDir } from "./userData";
 import { createMainWindow, resolveAppOrigin, revealWindow } from "./window";
@@ -51,6 +55,11 @@ function startApp(): void {
   const appOrigin = resolveAppOrigin();
   const userData = app.getPath("userData");
   const shellSettings = new ShellSettingsStore(userData);
+  const defaultTrayLabels = bundledTrayLabels(
+    readTrayLabelBundle(join(__dirname, "..", "tray-labels.json")),
+    app.getPreferredSystemLanguages(),
+  );
+  let shellLabels = mergeTrayLabels(shellSettings.readTrayLabels(), defaultTrayLabels);
 
   const setAutoLaunch = (enabled: boolean) => {
     if (process.platform === "linux") setLinuxAutostart(enabled);
@@ -80,6 +89,12 @@ function startApp(): void {
     }
   };
 
+  const mediaAuth = installMediaAuth(session.defaultSession);
+  const spellCheck = createSpellCheck(session.defaultSession, {
+    read: () => shellSettings.readSpellCheckLanguages(),
+    save: (languages) => shellSettings.saveSpellCheckLanguages(languages),
+  });
+
   registerBridgeIpc(ipcMain, {
     isTrustedSender: (event) => senderOrigin(event) === appOrigin,
     secrets: new SecretStore(userData, safeStorage),
@@ -94,10 +109,12 @@ function startApp(): void {
       }),
     setBadge: (state) => tray?.setBadge(state),
     setTrayLabels: (received) => {
-      const labels = mergeTrayLabels(received, ENGLISH_TRAY_LABELS);
-      shellSettings.saveTrayLabels({ ...labels });
-      tray?.setLabels(labels);
+      shellLabels = mergeTrayLabels(received, defaultTrayLabels);
+      shellSettings.saveTrayLabels({ ...shellLabels });
+      tray?.setLabels(shellLabels);
     },
+    setMediaAuth: (auth) => mediaAuth.set(auth),
+    spellCheck,
     setWindowTheme: (theme) => {
       shellSettings.saveWindowTheme(theme);
       const overlay = overlayUpdate(process.platform, theme);
@@ -111,7 +128,7 @@ function startApp(): void {
   tray = createTray({
     iconDir: join(__dirname, "..", "..", "assets", "tray"),
     settings: shellSettings.read(),
-    labels: mergeTrayLabels(shellSettings.readTrayLabels(), ENGLISH_TRAY_LABELS),
+    labels: shellLabels,
     onAction: onTrayAction,
   });
 
@@ -122,6 +139,7 @@ function startApp(): void {
     shouldReallyClose: () => isQuitting,
   });
   rearmQueueOnNavigation(mainWindow.webContents, deepLinks);
+  installContextMenu(mainWindow.webContents, () => shellLabels);
 
   startAutoUpdates(log);
 }

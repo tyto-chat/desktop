@@ -42,10 +42,13 @@ function toTemplate(
   });
 }
 
+const LINUX_MENU_RESYNC_MS = 1500;
+
 export function createTray(deps: TrayDeps): TrayController {
   let badge: BadgeState = { unreadCount: 0, callState: "none" };
   let settings = deps.settings;
   let labels = deps.labels;
+  let destroyed = false;
 
   const iconFor = (state: BadgeState) =>
     nativeImage.createFromPath(join(deps.iconDir, `${trayIconFor(state)}.png`));
@@ -67,6 +70,12 @@ export function createTray(deps: TrayDeps): TrayController {
   };
 
   render();
+  if (process.platform === "linux") {
+    // KDE sometimes shows the creation-time menu empty until the next setContextMenu.
+    setTimeout(() => {
+      if (!destroyed) render();
+    }, LINUX_MENU_RESYNC_MS).unref();
+  }
 
   return {
     setBadge(state) {
@@ -82,6 +91,7 @@ export function createTray(deps: TrayDeps): TrayController {
       render();
     },
     destroy() {
+      destroyed = true;
       tray.destroy();
     },
   };
