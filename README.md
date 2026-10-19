@@ -62,12 +62,13 @@ release is marked as a prerelease.
 
 ## Code signing policy
 
-Free code signing on Windows is provided by [SignPath.io](https://signpath.io), with a certificate
-issued by the [SignPath Foundation](https://signpath.org).
+An application for free Windows code signing by [SignPath.io](https://signpath.io), with a
+certificate issued by the [SignPath Foundation](https://signpath.org), is pending. Until it is
+accepted, Windows builds are unsigned.
 
-Signed Windows builds are produced only by the release workflow in this repository, from a tagged
-commit, on GitHub-hosted runners. Every signing request is approved by hand. The full policy, the
-team roles and the privacy statement are at
+Once in place, signed Windows builds are produced only by the release workflow in this repository,
+from a tagged commit, on GitHub-hosted runners, and every signing request is approved by hand. The
+full policy, the team roles and the privacy statement are at
 [tyto.chat/docs/code-signing](https://tyto.chat/docs/code-signing).
 
 ## Security
