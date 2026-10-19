@@ -34,6 +34,10 @@ function makeDeps(): BridgeIpcDeps {
     setTrayLabels: vi.fn(),
     setWindowTheme: vi.fn(),
     setMediaAuth: vi.fn(),
+    spellCheck: {
+      get: vi.fn().mockReturnValue({ available: ["en-US", "pl"], enabled: ["en-US"] }),
+      set: vi.fn().mockReturnValue({ available: ["en-US", "pl"], enabled: ["pl"] }),
+    },
     deepLinksReady: vi.fn(),
   };
 }
@@ -127,6 +131,20 @@ describe("registerBridgeIpc", () => {
       expect(deps.setWindowTheme).not.toHaveBeenCalled();
     },
   );
+
+  it("reads and sets spell check languages, rejecting malformed lists", async () => {
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckGet, TRUSTED)).resolves.toEqual({
+      available: ["en-US", "pl"],
+      enabled: ["en-US"],
+    });
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, ["pl"])).resolves.toEqual({
+      available: ["en-US", "pl"],
+      enabled: ["pl"],
+    });
+    expect(deps.spellCheck.set).toHaveBeenCalledWith(["pl"]);
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, "pl")).rejects.toThrow();
+    await expect(invoke(BRIDGE_CHANNELS.spellCheckSet, TRUSTED, ["p l"])).rejects.toThrow();
+  });
 
   it("passes a media token for an http(s) origin on, including clearing it", () => {
     listeners.get(BRIDGE_CHANNELS.appStateSetMediaAuth)!(TRUSTED, {

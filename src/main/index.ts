@@ -14,6 +14,7 @@ import { preferredPasswordStore } from "./passwordStore";
 import { registerAppProtocol, registerAppScheme } from "./protocol";
 import { allowsWeakBackend, bootMode, SecretStore } from "./secrets";
 import { ShellSettingsStore } from "./shellSettings";
+import { createSpellCheck } from "./spellCheck";
 import { createTray, type TrayController } from "./tray";
 import { bundledTrayLabels, readTrayLabelBundle } from "./trayLabels";
 import { mergeTrayLabels, type TrayAction } from "./trayState";
@@ -58,8 +59,8 @@ function startApp(): void {
     readTrayLabelBundle(join(__dirname, "..", "tray-labels.json")),
     app.getPreferredSystemLanguages(),
   );
-
   let shellLabels = mergeTrayLabels(shellSettings.readTrayLabels(), defaultTrayLabels);
+
   const setAutoLaunch = (enabled: boolean) => {
     if (process.platform === "linux") setLinuxAutostart(enabled);
     else app.setLoginItemSettings({ openAtLogin: enabled });
@@ -89,6 +90,10 @@ function startApp(): void {
   };
 
   const mediaAuth = installMediaAuth(session.defaultSession);
+  const spellCheck = createSpellCheck(session.defaultSession, {
+    read: () => shellSettings.readSpellCheckLanguages(),
+    save: (languages) => shellSettings.saveSpellCheckLanguages(languages),
+  });
 
   registerBridgeIpc(ipcMain, {
     isTrustedSender: (event) => senderOrigin(event) === appOrigin,
@@ -109,6 +114,7 @@ function startApp(): void {
       tray?.setLabels(shellLabels);
     },
     setMediaAuth: (auth) => mediaAuth.set(auth),
+    spellCheck,
     setWindowTheme: (theme) => {
       shellSettings.saveWindowTheme(theme);
       const overlay = overlayUpdate(process.platform, theme);
@@ -133,13 +139,13 @@ function startApp(): void {
     shouldReallyClose: () => isQuitting,
   });
   rearmQueueOnNavigation(mainWindow.webContents, deepLinks);
+  installContextMenu(mainWindow.webContents, () => shellLabels);
 
   startAutoUpdates(log);
 }
 
 app.setPath(
   "userData",
-  installContextMenu(mainWindow.webContents, () => shellLabels);
   resolveUserDataDir({
     appData: app.getPath("appData"),
     isPackaged: app.isPackaged,

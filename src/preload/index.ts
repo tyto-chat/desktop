@@ -29,6 +29,10 @@ const bridge: PlatformBridge = {
     setWindowTheme: (theme) => ipcRenderer.send("bridge:appState:setWindowTheme", theme),
     setMediaAuth: (auth) => ipcRenderer.send("bridge:appState:setMediaAuth", auth),
   },
+  spellCheck: {
+    get: () => ipcRenderer.invoke("bridge:spellCheck:get"),
+    set: (languages) => ipcRenderer.invoke("bridge:spellCheck:set", languages),
+  },
   app: {
     getVersion: () => ipcRenderer.invoke("bridge:app:getVersion"),
     setAutoLaunch: (enabled) => ipcRenderer.invoke("bridge:app:setAutoLaunch", enabled),

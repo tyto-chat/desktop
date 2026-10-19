@@ -61,6 +61,11 @@ export interface BridgeMediaAuth {
   token: string | null;
 }
 
+export interface BridgeSpellCheck {
+  available: string[];
+  enabled: string[];
+}
+
 export interface PlatformBridge {
   bridgeVersion: number;
   secrets: {
@@ -80,6 +85,10 @@ export interface PlatformBridge {
     setTrayLabels(labels: BridgeTrayLabels): void;
     setWindowTheme(theme: BridgeWindowTheme): void;
     setMediaAuth(auth: BridgeMediaAuth): void;
+  };
+  spellCheck: {
+    get(): Promise<BridgeSpellCheck>;
+    set(languages: string[]): Promise<BridgeSpellCheck>;
   };
   app: {
     getVersion(): Promise<string>;

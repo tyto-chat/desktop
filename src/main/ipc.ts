@@ -1,5 +1,11 @@
 import { parseWindowTheme, type WindowTheme } from "./windowChrome";
-import type { BridgeBadgeState, BridgeMediaAuth, BridgeNotification } from "../shared/bridge";
+import { isLanguageList } from "./spellCheck";
+import type {
+  BridgeBadgeState,
+  BridgeMediaAuth,
+  BridgeNotification,
+  BridgeSpellCheck,
+} from "../shared/bridge";
 
 export const BRIDGE_CHANNELS = {
   secretsGet: "bridge:secrets:get",
@@ -16,6 +22,8 @@ export const BRIDGE_CHANNELS = {
   appStateSetTrayLabels: "bridge:appState:setTrayLabels",
   appStateSetWindowTheme: "bridge:appState:setWindowTheme",
   appStateSetMediaAuth: "bridge:appState:setMediaAuth",
+  spellCheckGet: "bridge:spellCheck:get",
+  spellCheckSet: "bridge:spellCheck:set",
 } as const;
 
 export const RENDERER_CHANNELS = {
@@ -59,6 +67,7 @@ export interface BridgeIpcDeps {
   setTrayLabels(labels: Record<string, unknown>): void;
   setWindowTheme(theme: WindowTheme): void;
   setMediaAuth(auth: BridgeMediaAuth): void;
+  spellCheck: { get(): BridgeSpellCheck; set(languages: string[]): BridgeSpellCheck };
   deepLinksReady(): void;
 }
 
@@ -140,6 +149,11 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
     deps.config.set(requireText(json, MAX_CONFIG_LENGTH)),
   );
   handle(BRIDGE_CHANNELS.appGetVersion, () => deps.getVersion());
+  handle(BRIDGE_CHANNELS.spellCheckGet, () => deps.spellCheck.get());
+  handle(BRIDGE_CHANNELS.spellCheckSet, (languages) => {
+    if (!isLanguageList(languages)) throw new Error("invalid bridge argument");
+    return deps.spellCheck.set(languages);
+  });
   handle(BRIDGE_CHANNELS.appSetAutoLaunch, (enabled) => {
     if (typeof enabled !== "boolean") throw new Error("invalid bridge argument");
     deps.setAutoLaunch(enabled);
