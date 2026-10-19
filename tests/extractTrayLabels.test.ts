@@ -50,7 +50,9 @@ describe("extract-tray-labels.js", () => {
 
   it("fails the build when English lacks a tray string", () => {
     const dir = mkdtempSync(join(tmpdir(), "tyto-locales-"));
-    const { tray_quit: _quit, ...incomplete } = fullEnglish;
+    const incomplete = Object.fromEntries(
+      Object.entries(fullEnglish).filter(([key]) => key !== "tray_quit"),
+    );
     catalog(dir, "en", incomplete);
     expect(() =>
       execFileSync(process.execPath, [SCRIPT, dir, join(dir, "out.json")], { stdio: "pipe" }),

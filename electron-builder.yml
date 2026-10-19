@@ -53,7 +53,8 @@ nsis:
   allowToChangeInstallationDirectory: true
 
 linux:
-  icon: build/icon.png
+  icon: build/icons
+  syncDesktopName: true
   category: Network;InstantMessaging
   synopsis: tyto.chat desktop app
   maintainer: tyto.chat

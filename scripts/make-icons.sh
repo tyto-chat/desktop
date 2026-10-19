@@ -10,6 +10,11 @@ mkdir -p "$TRAY"
 
 rsvg-convert -w 1024 -h 1024 "$SOURCE" -o "$ROOT/build/icon.png"
 
+mkdir -p "$ROOT/build/icons"
+for size in 16 24 32 48 64 128 256 512; do
+  rsvg-convert -w "$size" -h "$size" "$SOURCE" -o "$ROOT/build/icons/${size}x${size}.png"
+done
+
 tinted() {
   local color="$1" out="$2"
   sed "s/fill=\"url(#nebula)\"/fill=\"$color\"/g" "$SOURCE" > "$out"
@@ -32,4 +37,4 @@ render call "$WORK/call.svg"
 tinted "#f59e0b" "$WORK/call-muted.svg"
 render call-muted "$WORK/call-muted.svg"
 
-echo "Icons written to build/ and assets/tray/"
+echo "Icons written to build/, build/icons/ and assets/tray/"
