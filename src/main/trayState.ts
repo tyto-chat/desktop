@@ -93,6 +93,12 @@ export const ENGLISH_TRAY_LABELS: TrayLabels = {
 const APP_NAME = "Tyto";
 const MAX_LABEL_LENGTH = 120;
 
+const SNOOZE_CHOICES: readonly [keyof TrayLabels, number | null][] = [
+  ["snooze30", 30],
+  ["snooze60", 60],
+  ["snoozeIndefinitely", null],
+];
+
 const PRESENCE_LABEL_KEYS: readonly [BridgePresence, keyof TrayLabels][] = [
   ["online", "presenceOnline"],
   ["away", "presenceAway"],
@@ -135,7 +141,9 @@ function englishTooltip(state: BadgeState): string {
 }
 
 export function trayTooltipFor(state: BadgeState): string {
-  if (state.callState === "none" && state.unreadCount === 0) return APP_NAME;
+  if (state.callState === "none" && state.unreadCount === 0) {
+    return usableLabel(state.snooze?.label) ?? APP_NAME;
+  }
   return usableLabel(state.tooltip) ?? englishTooltip(state);
 }
 
@@ -162,17 +170,24 @@ export function buildTrayMenu(
     );
   }
 
+  const snooze = state.snooze;
+  menu.push(separator);
+  if (snooze) {
+    menu.push(
+      { kind: "item", label: snooze.label, enabled: false },
+      command(labels.snoozeOff, { type: "snooze", minutes: 0 }),
+    );
+  }
   menu.push(
-    separator,
     {
       kind: "submenu",
       label: labels.snooze,
-      submenu: [
-        command(labels.snooze30, { type: "snooze", minutes: 30 }),
-        command(labels.snooze60, { type: "snooze", minutes: 60 }),
-        command(labels.snoozeIndefinitely, { type: "snooze", minutes: null }),
-        command(labels.snoozeOff, { type: "snooze", minutes: 0 }),
-      ],
+      submenu: SNOOZE_CHOICES.map(([key, minutes]) => ({
+        kind: "checkbox",
+        label: labels[key],
+        checked: snooze !== undefined && snooze.minutes === minutes,
+        action: { type: "command", command: { type: "snooze", minutes } },
+      })),
     },
     {
       kind: "submenu",

@@ -2,6 +2,7 @@ import { parseWindowTheme, type WindowTheme } from "./windowChrome";
 import { isLanguageList } from "./spellCheck";
 import type {
   BridgeBadgeState,
+  BridgeSnoozeState,
   BridgeMediaAuth,
   BridgeNotification,
   BridgeSpellCheck,
@@ -104,19 +105,31 @@ function parseMediaAuth(value: unknown): BridgeMediaAuth | null {
 
 function parseBadgeState(value: unknown): BridgeBadgeState | null {
   if (value === null || typeof value !== "object") return null;
-  const { unreadCount, callState, callLabel, tooltip } = value as Record<string, unknown>;
+  const { unreadCount, callState, callLabel, tooltip, snooze } = value as Record<string, unknown>;
   if (typeof unreadCount !== "number" || !Number.isInteger(unreadCount) || unreadCount < 0) {
     return null;
   }
   if (!CALL_STATES.includes(callState)) return null;
   if (callLabel !== undefined && !text(callLabel, MAX_CALL_LABEL_LENGTH)) return null;
   if (tooltip !== undefined && !text(tooltip, MAX_TOOLTIP_LENGTH)) return null;
+  const parsedSnooze = snooze === undefined ? undefined : parseSnoozeState(snooze);
+  if (parsedSnooze === null) return null;
   return {
     unreadCount,
     callState: callState as BridgeBadgeState["callState"],
     ...(callLabel === undefined ? {} : { callLabel }),
     ...(tooltip === undefined ? {} : { tooltip }),
+    ...(parsedSnooze === undefined ? {} : { snooze: parsedSnooze }),
   };
+}
+
+function parseSnoozeState(value: unknown): BridgeSnoozeState | null {
+  if (value === null || typeof value !== "object") return null;
+  const { minutes, label } = value as Record<string, unknown>;
+  const validMinutes =
+    minutes === null || (typeof minutes === "number" && Number.isInteger(minutes) && minutes > 0);
+  if (!validMinutes || !text(label, MAX_TOOLTIP_LENGTH, false)) return null;
+  return { minutes: minutes as number | null, label };
 }
 
 export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void {

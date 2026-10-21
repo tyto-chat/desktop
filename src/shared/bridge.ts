@@ -7,11 +7,17 @@ export interface BridgeNotification {
   payload: string;
 }
 
+export interface BridgeSnoozeState {
+  minutes: number | null;
+  label: string;
+}
+
 export interface BridgeBadgeState {
   unreadCount: number;
   callState: BridgeCallState;
   callLabel?: string;
   tooltip?: string;
+  snooze?: BridgeSnoozeState;
 }
 
 export interface BridgeTrayLabels {
