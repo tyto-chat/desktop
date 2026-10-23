@@ -190,6 +190,36 @@ describe("registerBridgeIpc", () => {
     });
   });
 
+  it("carries the snooze state with the badge", () => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {
+      unreadCount: 0,
+      callState: "none",
+      snooze: { minutes: null, label: "Snoozed until you turn them back on" },
+    });
+    expect(deps.setBadge).toHaveBeenCalledWith({
+      unreadCount: 0,
+      callState: "none",
+      snooze: { minutes: null, label: "Snoozed until you turn them back on" },
+    });
+  });
+
+  it.each([
+    [{ minutes: 30 }],
+    [{ minutes: 30, label: "" }],
+    [{ minutes: 0, label: "x" }],
+    [{ minutes: 1.5, label: "x" }],
+    [{ minutes: "30", label: "x" }],
+    [{ minutes: 30, label: "x".repeat(513) }],
+    ["30"],
+  ])("drops a badge state with the snooze %j", (snooze) => {
+    listeners.get(BRIDGE_CHANNELS.appStateSetBadge)!(TRUSTED, {
+      unreadCount: 0,
+      callState: "none",
+      snooze,
+    });
+    expect(deps.setBadge).not.toHaveBeenCalled();
+  });
+
   it.each([[5], ["x".repeat(513)], [{ a: 1 }]])(
     "drops a badge state with the tooltip %j",
     (tooltip) => {

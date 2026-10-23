@@ -71,6 +71,20 @@ describe("trayTooltipFor", () => {
     ).toBe("W rozmowie: #voice @ Srv");
   });
 
+  it("names the snooze instead of the app while idle and snoozed", () => {
+    expect(trayTooltipFor({ ...idle, snooze: { minutes: 30, label: "Snoozed until 14:32" } })).toBe(
+      "Snoozed until 14:32",
+    );
+    expect(
+      trayTooltipFor({
+        unreadCount: 2,
+        callState: "none",
+        tooltip: "2 unread",
+        snooze: { minutes: 30, label: "Snoozed until 14:32" },
+      }),
+    ).toBe("2 unread");
+  });
+
   it("names the app when idle", () => {
     expect(trayTooltipFor(idle)).toBe("Tyto");
   });
@@ -172,7 +186,6 @@ describe("buildTrayMenu", () => {
       "Na 30 minut",
       "Na godzinę",
       "Do odwołania",
-      "Włącz powiadomienia ponownie",
       "Status",
       "Dostępny",
       "Zaraz wracam",
@@ -185,7 +198,7 @@ describe("buildTrayMenu", () => {
     for (const english of Object.values(EN)) expect(shown).not.toContain(english);
   });
 
-  it("offers the snooze lengths and a way back", () => {
+  it("offers the snooze lengths, none of them checked while idle", () => {
     const snooze = buildTrayMenu(idle, settings, EN).find(
       (i) => i.label === "Snooze notifications",
     )!;
@@ -193,8 +206,49 @@ describe("buildTrayMenu", () => {
       { type: "command", command: { type: "snooze", minutes: 30 } },
       { type: "command", command: { type: "snooze", minutes: 60 } },
       { type: "command", command: { type: "snooze", minutes: null } },
-      { type: "command", command: { type: "snooze", minutes: 0 } },
     ]);
+    expect(snooze.submenu!.map((i) => i.checked)).toEqual([false, false, false]);
+    expect(labels(buildTrayMenu(idle, settings, EN))).not.toContain("Turn notifications back on");
+  });
+
+  it("shows the snooze status, a way back and the checked length while snoozed", () => {
+    const snoozed: BadgeState = {
+      ...idle,
+      snooze: { minutes: 60, label: "Notifications snoozed until 14:32" },
+    };
+    const menu = buildTrayMenu(snoozed, settings, EN);
+
+    expect(labels(menu)).toEqual([
+      "Open Tyto",
+      "Notifications snoozed until 14:32",
+      "Turn notifications back on",
+      "Snooze notifications",
+      "Presence",
+      "Start on boot",
+      "Start minimized",
+      "Quit",
+    ]);
+    expect(menu.find((i) => i.label === "Notifications snoozed until 14:32")!.enabled).toBe(false);
+    expect(menu.find((i) => i.label === "Turn notifications back on")!.action).toEqual({
+      type: "command",
+      command: { type: "snooze", minutes: 0 },
+    });
+    const lengths = menu.find((i) => i.label === "Snooze notifications")!.submenu!;
+    expect(lengths.map((i) => [i.label, i.checked])).toEqual([
+      ["For 30 minutes", false],
+      ["For 1 hour", true],
+      ["Until I turn them back on", false],
+    ]);
+  });
+
+  it("checks the open-ended length when snoozed indefinitely", () => {
+    const menu = buildTrayMenu(
+      { ...idle, snooze: { minutes: null, label: "Snoozed until you turn them back on" } },
+      settings,
+      EN,
+    );
+    const lengths = menu.find((i) => i.label === "Snooze notifications")!.submenu!;
+    expect(lengths.map((i) => i.checked)).toEqual([false, false, true]);
   });
 
   it("offers the four presence states", () => {
