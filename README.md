@@ -74,8 +74,25 @@ The page runs sandboxed with context isolation and no Node.js access. The preloa
 privileged code and exposes one narrow object to the page. The shell refuses to start rather than
 store credentials without operating system encryption.
 
-Report vulnerabilities as described in the
-[client security policy](https://github.com/tyto-chat/client/blob/master/SECURITY.md).
+Report vulnerabilities as described in the [security policy](SECURITY.md).
+
+## About this project and AI usage
+
+AI is part of the daily workflow behind the desktop app, and a large part of this shell was written
+with it. The app is deliberately thin, so most of what matters is a handful of security-sensitive
+pieces: credential storage, the preload bridge and the updater. Every product and architecture
+decision is a human one, AI-produced code is reviewed before it lands, and the app is tested by hand
+on real machines before releases. The practices that keep a project like this healthy are enforced
+regardless of who wrote a given line: type checking, linting, formatting and the unit test suite run
+on every pull request on Linux, macOS and Windows, a smoke test boots the packaged shell, and the
+shell has gone through a dedicated security review.
+
+Hands-on testing has been done on Linux and Windows. The macOS build is produced by CI but has not
+yet been run on real hardware.
+
+AI was also used to translate the tray menu into the supported languages. Translations into
+languages the maintainer does not speak have not been reviewed by native speakers yet; corrections
+are welcome.
 
 ## License
 
