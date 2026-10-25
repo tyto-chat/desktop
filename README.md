@@ -1,5 +1,9 @@
 # tyto.chat desktop
 
+[![CI](https://github.com/tyto-chat/desktop/actions/workflows/ci.yml/badge.svg?branch=1.0)](https://github.com/tyto-chat/desktop/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/tyto-chat/desktop?include_prereleases&label=release)](https://github.com/tyto-chat/desktop/releases)
+[![License: MIT](https://img.shields.io/github/license/tyto-chat/desktop)](LICENSE)
+
 The desktop app for [tyto.chat](https://tyto.chat), for macOS, Windows and Linux.
 
 It is a thin Electron shell around the Tyto web client built in desktop mode. The shell adds what a
