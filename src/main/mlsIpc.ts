@@ -27,6 +27,7 @@ export const MLS_CHANNELS = {
   discard: "bridge:mls:discard",
   encrypt: "bridge:mls:encrypt",
   decrypt: "bridge:mls:decrypt",
+  acknowledgeDecrypt: "bridge:mls:acknowledgeDecrypt",
   signKeyPackageUpload: "bridge:mls:signKeyPackageUpload",
   signRevocation: "bridge:mls:signRevocation",
 } as const;
@@ -37,6 +38,7 @@ export interface MlsIpcDeps {
 }
 
 const HTTP_ORIGIN = /^https?:\/\/[^/\s?#]+$/;
+const RECEIPT = /^[0-9a-f]{64}$/;
 const STAGED_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const MAX_ORIGIN = 512;
 const MAX_TEXT = 256;
@@ -131,6 +133,10 @@ function stagedId(value: unknown): string {
   return typeof value === "string" && STAGED_ID.test(value) ? value : invalid();
 }
 
+function receipt(value: unknown): string {
+  return typeof value === "string" && RECEIPT.test(value) ? value : invalid();
+}
+
 export function registerMlsIpc(ipc: IpcRegistrar, deps: MlsIpcDeps): void {
   const { host } = deps;
   const handle = (channel: string, handler: (...args: unknown[]) => unknown) => {
@@ -184,6 +190,7 @@ export function registerMlsIpc(ipc: IpcRegistrar, deps: MlsIpcDeps): void {
   handle(MLS_CHANNELS.decrypt, (s, st, g, m) =>
     host.decrypt(scope(s), state(st), text(g), bytes(m, MAX_MESSAGE_BYTES)),
   );
+  handle(MLS_CHANNELS.acknowledgeDecrypt, (s, r) => host.acknowledgeDecrypt(scope(s), receipt(r)));
   handle(MLS_CHANNELS.signKeyPackageUpload, (s, u) =>
     host.signKeyPackageUpload(scope(s), upload(u)),
   );

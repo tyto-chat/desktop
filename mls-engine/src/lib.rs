@@ -735,6 +735,9 @@ pub fn apply_delta(state: &[u8], delta: &[u8]) -> Result<Vec<u8>, JsError> {
             (Some(i), true) if device.groups[i].version == delta.base_version => {}
             _ => return Err(fail("stale stage: the conversation changed since it was staged")),
         }
+        if delta.consumed.iter().any(|c| !device.key_packages.iter().any(|p| p.id == c.id)) {
+            return Err(fail("stale stage: its key package was already used"));
+        }
         match (delta.removed, index) {
             (true, _) => device.groups.retain(|g| g.id != delta.group_id),
             (false, Some(i)) => device.groups[i] = delta.group,

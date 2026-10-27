@@ -166,6 +166,24 @@ function stagePrefix(scope: E2eeScope): string {
   return `${stateFileName(scope)}.stage.`;
 }
 
+function receivedPrefix(scope: E2eeScope): string {
+  return `${stateFileName(scope)}.received.`;
+}
+
+function receivedName(scope: E2eeScope, receipt: string): string {
+  return `${receivedPrefix(scope)}${receipt}`;
+}
+
+const RECEIPT = /^[0-9a-f]{64}$/;
+
+function receiptOf(scope: E2eeScope, groupId: string, message: Uint8Array): string {
+  return createHash("sha256")
+    .update(lengthPrefixed(scopeId(scope)))
+    .update(lengthPrefixed(groupId))
+    .update(message)
+    .digest("hex");
+}
+
 function lengthPrefixed(text: string): Buffer {
   const bytes = Buffer.from(text);
   const length = Buffer.alloc(2);
@@ -198,6 +216,56 @@ function decodeStage(record: Uint8Array): {
   };
 }
 
+interface Received {
+  data: Uint8Array;
+  sender: BridgeMlsCredential;
+  base: string;
+  next: Uint8Array;
+}
+
+function encodeReceived(receipt: string, held: Received): Uint8Array {
+  const base64 = (bytes: Uint8Array) => Buffer.from(bytes).toString("base64");
+  return utf8.encode(
+    JSON.stringify({
+      receipt,
+      base: held.base,
+      next: base64(held.next),
+      data: base64(held.data),
+      sender: {
+        ...held.sender,
+        devicePublicKey: base64(held.sender.devicePublicKey),
+        signature: base64(held.sender.signature),
+      },
+    }),
+  );
+}
+
+function decodeReceived(receipt: string, plain: Uint8Array): Received {
+  const held = JSON.parse(fromUtf8.decode(plain)) as {
+    receipt: string;
+    base: string;
+    next: string;
+    data: string;
+    sender: Omit<BridgeMlsCredential, "devicePublicKey" | "signature"> & {
+      devicePublicKey: string;
+      signature: string;
+    };
+  };
+  plain.fill(0);
+  if (held.receipt !== receipt) throw new Error("held message is not valid");
+  const bytes = (text: string) => new Uint8Array(Buffer.from(text, "base64"));
+  return {
+    base: held.base,
+    next: bytes(held.next),
+    data: bytes(held.data),
+    sender: {
+      ...held.sender,
+      devicePublicKey: bytes(held.sender.devicePublicKey),
+      signature: bytes(held.sender.signature),
+    },
+  };
+}
+
 function requireSettled(pending: ReadonlyMap<string, string>, groupId: string): void {
   if (pending.has(groupId)) throw new Error("this conversation has a pending stage");
 }
@@ -208,6 +276,7 @@ function stateKeySecretName(scope: E2eeScope): string {
 
 const SEALED_VERSION = 1;
 const SEALED_DELTA_VERSION = 2;
+const SEALED_RECEIVED_VERSION = 3;
 
 const TOKEN_BYTES = 16;
 const HEADER_BYTES = 1 + TOKEN_BYTES + 12 + 16;
@@ -215,6 +284,7 @@ const HEADER_BYTES = 1 + TOKEN_BYTES + 12 + 16;
 interface StateTracker {
   loaded: boolean;
   latest?: string;
+  receivesSettled?: boolean;
 }
 
 function tokenOf(sealed: Uint8Array): string {
@@ -225,6 +295,7 @@ class StateSeal {
   accepted?: Uint8Array;
   staged?: { id: string; groupId: string; record: Uint8Array };
   settled?: { id: string; groupId: string };
+  held?: { name: string; record: Uint8Array };
 
   constructor(
     private readonly key: Buffer,
@@ -252,6 +323,10 @@ class StateSeal {
 
   openDelta(sealed: Uint8Array): Uint8Array {
     return this.decrypt(sealed, SEALED_DELTA_VERSION).plain;
+  }
+
+  openReceived(sealed: Uint8Array): Uint8Array {
+    return this.decrypt(sealed, SEALED_RECEIVED_VERSION).plain;
   }
 
   open(sealed: Uint8Array): Uint8Array {
@@ -355,7 +430,7 @@ export class MlsHost {
       await this.secrets.delete(deviceKeySecretName(scope));
       await this.secrets.delete(stateKeySecretName(scope));
       await this.files.delete(stateFileName(scope));
-      await this.purgeStages(scope);
+      await this.purgeScopeFiles(scope);
       this.trackers.delete(scopeId(scope));
       this.pendingByScope.delete(scopeId(scope));
     });
@@ -509,17 +584,34 @@ export class MlsHost {
   }
 
   decrypt(scope: E2eeScope, state: Uint8Array, groupId: string, message: Uint8Array) {
-    return this.withKeys(scope, ({ signer, seal, pending }) => {
+    const receipt = receiptOf(scope, groupId, message);
+    const name = receivedName(scope, receipt);
+    return this.withKeys(scope, async ({ signer, seal, pending, latest }) => {
+      const held = await this.files.read(name);
+      if (held !== null) {
+        if (latest === null) throw new Error("no device state for this account");
+        const { data, sender, base, next } = decodeReceived(receipt, seal.openReceived(held));
+        if (tokenOf(latest) !== base) return { state: latest, data, sender, receipt };
+        seal.accepted = next;
+        return { state: next, data, sender, receipt };
+      }
       requireSettled(pending, groupId);
-      return take(
-        this.wasm.decrypt(seal.open(state), signer, utf8.encode(groupId), message),
-        (r) => ({
-          state: seal.seal(r.state, true).sealed,
-          data: r.data,
-          sender: credential(r.sender),
-        }),
-      );
+      const opened = seal.open(state);
+      const base = tokenOf(state);
+      return take(this.wasm.decrypt(opened, signer, utf8.encode(groupId), message), (r) => {
+        const data = r.data;
+        const sender = credential(r.sender);
+        const next = seal.seal(r.state, true).sealed;
+        const record = encodeReceived(receipt, { data, sender, base, next });
+        seal.held = { name, record: seal.seal(record, false, SEALED_RECEIVED_VERSION).sealed };
+        return { state: next, data, sender, receipt };
+      });
     });
+  }
+
+  acknowledgeDecrypt(scope: E2eeScope, receipt: string): Promise<void> {
+    if (!RECEIPT.test(receipt)) return Promise.reject(new Error("invalid receipt"));
+    return this.serial(scope, () => this.files.delete(receivedName(scope, receipt)));
   }
 
   signKeyPackageUpload(scope: E2eeScope, upload: BridgeKeyPackageUpload): Promise<Uint8Array> {
@@ -575,7 +667,7 @@ export class MlsHost {
     });
   }
 
-  private withKeys<T>(scope: E2eeScope, run: (keys: DeviceKeys) => T): Promise<T> {
+  private withKeys<T>(scope: E2eeScope, run: (keys: DeviceKeys) => T | Promise<T>): Promise<T> {
     return this.serial(scope, async () => {
       const storedSigner = await this.secrets.get(deviceKeySecretName(scope));
       const storedStateKey = await this.secrets.get(stateKeySecretName(scope));
@@ -584,14 +676,18 @@ export class MlsHost {
       }
       const tracker = await this.loadedTracker(scope);
       const pending = await this.loadedStages(scope);
-      const latest = await this.files.read(stateFileName(scope));
+      let latest = await this.files.read(stateFileName(scope));
       const initialised = latest !== null;
       const signer = new Uint8Array(Buffer.from(storedSigner, "base64"));
       const stateKey = Buffer.from(storedStateKey, "base64");
       const seal = new StateSeal(stateKey, scope, tracker);
       let result: T;
       try {
-        result = run({ signer, seal, initialised, latest, pending });
+        if (tracker.receivesSettled !== true) {
+          latest = await this.finishHalfSavedReceive(scope, seal, tracker, latest);
+          tracker.receivesSettled = true;
+        }
+        result = await run({ signer, seal, initialised, latest, pending });
       } finally {
         signer.fill(0);
         stateKey.fill(0);
@@ -600,10 +696,35 @@ export class MlsHost {
         await this.files.write(`${stagePrefix(scope)}${seal.staged.id}`, seal.staged.record);
         pending.set(seal.staged.groupId, seal.staged.id);
       }
+      if (seal.held !== undefined) {
+        await this.files.write(seal.held.name, seal.held.record);
+        tracker.receivesSettled = false;
+      }
       if (seal.accepted !== undefined) await this.accept(scope, tracker, seal.accepted);
+      if (seal.held !== undefined) tracker.receivesSettled = true;
       if (seal.settled !== undefined) await this.dropStage(scope, pending, seal.settled);
       return result;
     });
+  }
+
+  private async finishHalfSavedReceive(
+    scope: E2eeScope,
+    seal: StateSeal,
+    tracker: StateTracker,
+    latest: Uint8Array | null,
+  ): Promise<Uint8Array | null> {
+    if (latest === null) return null;
+    const prefix = receivedPrefix(scope);
+    for (const name of await this.files.list()) {
+      if (!name.startsWith(prefix)) continue;
+      const record = await this.files.read(name);
+      if (record === null) continue;
+      const held = decodeReceived(name.slice(prefix.length), seal.openReceived(record));
+      if (held.base !== tokenOf(latest)) continue;
+      await this.accept(scope, tracker, held.next);
+      return held.next;
+    }
+    return latest;
   }
 
   private async accept(scope: E2eeScope, tracker: StateTracker, sealed: Uint8Array): Promise<void> {
@@ -642,8 +763,8 @@ export class MlsHost {
     return pending;
   }
 
-  private async purgeStages(scope: E2eeScope): Promise<void> {
-    const prefix = stagePrefix(scope);
+  private async purgeScopeFiles(scope: E2eeScope): Promise<void> {
+    const prefix = `${stateFileName(scope)}.`;
     for (const name of await this.files.list()) {
       if (name.startsWith(prefix)) await this.files.delete(name);
     }

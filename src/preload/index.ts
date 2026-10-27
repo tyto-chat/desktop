@@ -46,6 +46,8 @@ const bridge: PlatformBridge = {
       ipcRenderer.invoke("bridge:mls:encrypt", scope, state, groupId, data),
     decrypt: (scope, state, groupId, message) =>
       ipcRenderer.invoke("bridge:mls:decrypt", scope, state, groupId, message),
+    acknowledgeDecrypt: (scope, receipt) =>
+      ipcRenderer.invoke("bridge:mls:acknowledgeDecrypt", scope, receipt),
     signKeyPackageUpload: (scope, upload) =>
       ipcRenderer.invoke("bridge:mls:signKeyPackageUpload", scope, upload),
     signRevocation: (scope, revocation) =>

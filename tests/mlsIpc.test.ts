@@ -123,9 +123,13 @@ describe("registerMlsIpc", () => {
       sent.message,
     )) as {
       data: Uint8Array;
+      receipt: string;
     };
 
     expect(Array.from(received.data)).toEqual([104, 105]);
+    await expect(
+      call(MLS_CHANNELS.acknowledgeDecrypt, scope(2), received.receipt),
+    ).resolves.toBeUndefined();
   });
 
   it("rejects untrusted senders", async () => {
@@ -148,6 +152,9 @@ describe("registerMlsIpc", () => {
       call(MLS_CHANNELS.createKeyPackages, scope(1), Uint8Array.of(1), 101, 86_400),
     ).rejects.toThrow("invalid bridge argument");
     await expect(call(MLS_CHANNELS.merge, "../x")).rejects.toThrow("invalid bridge argument");
+    await expect(call(MLS_CHANNELS.acknowledgeDecrypt, scope(1), "../x")).rejects.toThrow(
+      "invalid bridge argument",
+    );
     await expect(
       call(MLS_CHANNELS.signRevocation, scope(1), {
         deviceId: "d",

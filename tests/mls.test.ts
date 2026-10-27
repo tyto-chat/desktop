@@ -316,6 +316,26 @@ describe("MlsHost with the real engine", () => {
     }
   });
 
+  it("lets only one join merge when two welcomes share a one-time package", async () => {
+    const alice = await device(1, "a0000000-0000-4000-8000-000000000001");
+    const bob = await device(2, "b0000000-0000-4000-8000-000000000002");
+    const { packages } = await keyPackages(bob);
+    const welcomes: Uint8Array[] = [];
+    for (const groupId of ["conv-a", "conv-b"]) {
+      const created = await host.createGroup(alice.scope, alice.state, groupId);
+      alice.state = (await host.merge(created.id)).state;
+      const added = await host.addMembers(alice.scope, alice.state, groupId, [packages[0]!]);
+      alice.state = (await host.merge(added.id)).state;
+      welcomes.push(added.welcomes[0]!);
+    }
+
+    const first = await host.joinFromWelcome(bob.scope, bob.state, welcomes[0]!);
+    const second = await host.joinFromWelcome(bob.scope, bob.state, welcomes[1]!);
+    bob.state = (await host.merge(first.id)).state;
+
+    await expect(host.merge(second.id)).rejects.toThrow("stale");
+  });
+
   it("refuses a replayed welcome for a conversation the device already has", async () => {
     const alice = await device(1, "a0000000-0000-4000-8000-000000000001");
     const bob = await device(2, "b0000000-0000-4000-8000-000000000002");
@@ -497,7 +517,9 @@ describe("MlsHost with the real engine", () => {
     const { alice, bob } = await conversation();
     const sent = await host.encrypt(bob.scope, bob.state, "conv-1", Uint8Array.of(7));
     bob.state = sent.state;
-    alice.state = (await host.decrypt(alice.scope, alice.state, "conv-1", sent.message)).state;
+    const received = await host.decrypt(alice.scope, alice.state, "conv-1", sent.message);
+    alice.state = received.state;
+    await host.acknowledgeDecrypt(alice.scope, received.receipt);
 
     const pending = await host.addMembers(alice.scope, alice.state, "conv-1", []);
     alice.state = (await host.merge(pending.id)).state;
@@ -568,6 +590,107 @@ describe("MlsHost with the real engine", () => {
 
     expect(new TextDecoder().decode(received.data)).toBe("after recovery");
     expect(await host.latestState({ ...alice.scope, profileId: "nobody" })).toBeNull();
+  });
+
+  it("hands a received message back after a crash until the window confirms it kept it", async () => {
+    const { alice, bob } = await conversation();
+    const sent = await host.encrypt(
+      alice.scope,
+      alice.state,
+      "conv-1",
+      new TextEncoder().encode("survives a crash"),
+    );
+    alice.state = sent.state;
+    const first = await host.decrypt(bob.scope, bob.state, "conv-1", sent.message);
+
+    const restarted = new MlsHost(loadMlsWasm(), secrets, files);
+    const again = await restarted.decrypt(bob.scope, bob.state, "conv-1", sent.message);
+
+    expect(new TextDecoder().decode(again.data)).toBe("survives a crash");
+    expect(again.sender.deviceId).toBe(alice.credential.deviceId);
+    expect(again.receipt).toBe(first.receipt);
+    bob.state = again.state;
+    host = restarted;
+    expect((await send(alice, bob, "next one")).text).toBe("next one");
+
+    await host.acknowledgeDecrypt(bob.scope, again.receipt);
+    await expect(host.decrypt(bob.scope, bob.state, "conv-1", sent.message)).rejects.toThrow();
+  });
+
+  it("finishes advancing the receive state when a crash hit between the two writes", async () => {
+    const { alice, bob } = await conversation();
+    const sent = await host.encrypt(alice.scope, alice.state, "conv-1", Uint8Array.of(5));
+    alice.state = sent.state;
+    const write = files.write;
+    let writes = 0;
+    files.write = async (name, sealed) => {
+      if ((writes += 1) === 2) throw new Error("crashed");
+      return write(name, sealed);
+    };
+    await expect(host.decrypt(bob.scope, bob.state, "conv-1", sent.message)).rejects.toThrow(
+      "crashed",
+    );
+    files.write = write;
+
+    const restarted = new MlsHost(loadMlsWasm(), secrets, files);
+    const again = await restarted.decrypt(bob.scope, bob.state, "conv-1", sent.message);
+    await restarted.acknowledgeDecrypt(bob.scope, again.receipt);
+
+    expect(Array.from(again.data)).toEqual([5]);
+    await expect(
+      restarted.decrypt(bob.scope, again.state, "conv-1", sent.message),
+    ).rejects.toThrow();
+    await expect(restarted.decrypt(bob.scope, bob.state, "conv-1", sent.message)).rejects.toThrow(
+      "stale",
+    );
+  });
+
+  it("finishes a half-saved receive before any other change to the device state", async () => {
+    const { alice, bob } = await conversation();
+    const sent = await host.encrypt(alice.scope, alice.state, "conv-1", Uint8Array.of(6));
+    alice.state = sent.state;
+    const write = files.write;
+    let writes = 0;
+    files.write = async (name, sealed) => {
+      if ((writes += 1) === 2) throw new Error("disk full");
+      return write(name, sealed);
+    };
+    await expect(host.decrypt(bob.scope, bob.state, "conv-1", sent.message)).rejects.toThrow(
+      "disk full",
+    );
+    files.write = write;
+
+    await expect(host.encrypt(bob.scope, bob.state, "conv-1", Uint8Array.of(1))).rejects.toThrow(
+      "stale",
+    );
+    bob.state = (await host.latestState(bob.scope))!.state;
+    const again = await host.decrypt(bob.scope, bob.state, "conv-1", sent.message);
+    await host.acknowledgeDecrypt(bob.scope, again.receipt);
+
+    expect(Array.from(again.data)).toEqual([6]);
+    await expect(host.decrypt(bob.scope, again.state, "conv-1", sent.message)).rejects.toThrow();
+  });
+
+  it("keeps held messages encrypted and drops them with the device key", async () => {
+    const { alice, bob } = await conversation();
+    const secret = new TextEncoder().encode("held-plaintext-marker");
+    const sent = await host.encrypt(alice.scope, alice.state, "conv-1", secret);
+    await host.decrypt(bob.scope, bob.state, "conv-1", sent.message);
+
+    const stored = [...files.values.values()].map((v) => Buffer.from(v).toString("latin1"));
+    expect(stored.some((v) => v.includes("held-plaintext-marker"))).toBe(false);
+    const before = files.values.size;
+
+    await host.deleteDeviceKey(bob.scope);
+
+    expect([...files.values.keys()].some((name) => name.includes(".received."))).toBe(false);
+    expect(files.values.size).toBeLessThan(before - 1);
+  });
+
+  it("refuses to acknowledge a receipt that is not a held message id", async () => {
+    const { bob } = await conversation();
+
+    await expect(host.acknowledgeDecrypt(bob.scope, "../escape")).rejects.toThrow("receipt");
   });
 
   it("refuses to initialise a device twice so accepted conversations survive", async () => {

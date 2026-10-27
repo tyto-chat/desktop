@@ -186,7 +186,13 @@ export interface BridgeMls {
     state: Uint8Array,
     groupId: string,
     message: Uint8Array,
-  ): Promise<{ state: Uint8Array; data: Uint8Array; sender: BridgeMlsCredential }>;
+  ): Promise<{
+    state: Uint8Array;
+    data: Uint8Array;
+    sender: BridgeMlsCredential;
+    receipt: string;
+  }>;
+  acknowledgeDecrypt(scope: BridgeE2eeScope, receipt: string): Promise<void>;
   signKeyPackageUpload(scope: BridgeE2eeScope, upload: BridgeKeyPackageUpload): Promise<Uint8Array>;
   signRevocation(scope: BridgeE2eeScope, revocation: BridgeRevocation): Promise<Uint8Array>;
 }
