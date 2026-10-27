@@ -5,3 +5,5 @@ dist/
 *.log
 .env
 .env.*
+mls-engine/pkg/
+mls-engine/target/

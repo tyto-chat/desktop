@@ -3,7 +3,7 @@ const globals = require("globals");
 const tseslint = require("typescript-eslint");
 
 module.exports = tseslint.config(
-  { ignores: ["app", "dist", ".client-build", "node_modules"] },
+  { ignores: ["app", "dist", ".client-build", "node_modules", "mls-engine"] },
   {
     files: ["**/*.ts"],
     extends: [js.configs.recommended, tseslint.configs.recommended],

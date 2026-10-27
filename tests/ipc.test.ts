@@ -7,6 +7,7 @@ import {
   type BridgeIpcDeps,
   type IpcRegistrar,
 } from "../src/main/ipc";
+import { MLS_CHANNELS } from "../src/main/mlsIpc";
 
 type Handler = (event: unknown, ...args: unknown[]) => unknown;
 
@@ -73,6 +74,23 @@ describe("registerBridgeIpc", () => {
     expect(deps.secrets.set).toHaveBeenCalledWith("k", "v");
     expect(deps.secrets.delete).toHaveBeenCalledWith("k");
     expect(deps.config.set).toHaveBeenCalledWith("{}");
+  });
+
+  it("keeps device signing keys out of reach of the renderer", async () => {
+    const key = 'e2ee-device-key:["https://chat.example.org",1,"p"]';
+
+    await expect(invoke(BRIDGE_CHANNELS.secretsGet, TRUSTED, key)).rejects.toThrow(
+      "invalid bridge argument",
+    );
+    await expect(invoke(BRIDGE_CHANNELS.secretsSet, TRUSTED, key, "x")).rejects.toThrow(
+      "invalid bridge argument",
+    );
+    await expect(invoke(BRIDGE_CHANNELS.secretsDelete, TRUSTED, key)).rejects.toThrow(
+      "invalid bridge argument",
+    );
+    expect(deps.secrets.get).not.toHaveBeenCalled();
+    expect(deps.secrets.set).not.toHaveBeenCalled();
+    expect(deps.secrets.delete).not.toHaveBeenCalled();
   });
 
   it("routes app calls", async () => {
@@ -295,7 +313,9 @@ describe("preload", () => {
 
   it("uses exactly the channels the main process registers", () => {
     const used = [...source.matchAll(/"(bridge:[a-zA-Z:]+)"/g)].map((m) => m[1]!);
-    expect([...new Set(used)].sort()).toEqual(Object.values(BRIDGE_CHANNELS).sort());
+    expect([...new Set(used)].sort()).toEqual(
+      [...Object.values(BRIDGE_CHANNELS), ...Object.values(MLS_CHANNELS)].sort(),
+    );
   });
 
   it("imports nothing at runtime except electron", () => {
@@ -306,7 +326,7 @@ describe("preload", () => {
     expect(source).not.toMatch(/\brequire\(/);
   });
 
-  it("declares bridge version 2", () => {
-    expect(source).toMatch(/bridgeVersion:\s*2\b/);
+  it("declares bridge version 3", () => {
+    expect(source).toMatch(/bridgeVersion:\s*3\b/);
   });
 });

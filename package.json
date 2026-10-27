@@ -15,6 +15,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "build:client": "bash scripts/build-client.sh",
+    "build:mls": "bash scripts/build-mls.sh",
     "dev": "npm run build && electron .",
     "start": "npm run build && electron .",
     "typecheck": "tsc -p tsconfig.json --noEmit",

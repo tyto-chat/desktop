@@ -10,11 +10,46 @@ function subscribe<T>(channel: string, handler: (value: T) => void): () => void 
 }
 
 const bridge: PlatformBridge = {
-  bridgeVersion: 2,
+  bridgeVersion: 3,
   secrets: {
     get: (key) => ipcRenderer.invoke("bridge:secrets:get", key),
     set: (key, value) => ipcRenderer.invoke("bridge:secrets:set", key, value),
     delete: (key) => ipcRenderer.invoke("bridge:secrets:delete", key),
+  },
+  mls: {
+    createDeviceKey: (scope) => ipcRenderer.invoke("bridge:mls:createDeviceKey", scope),
+    deleteDeviceKey: (scope) => ipcRenderer.invoke("bridge:mls:deleteDeviceKey", scope),
+    latestState: (scope) => ipcRenderer.invoke("bridge:mls:latestState", scope),
+    pendingStages: (scope) => ipcRenderer.invoke("bridge:mls:pendingStages", scope),
+    generateDevice: (scope, credential) =>
+      ipcRenderer.invoke("bridge:mls:generateDevice", scope, credential),
+    createKeyPackages: (scope, state, count, lifetimeSeconds) =>
+      ipcRenderer.invoke("bridge:mls:createKeyPackages", scope, state, count, lifetimeSeconds),
+    inspectKeyPackage: (keyPackage) =>
+      ipcRenderer.invoke("bridge:mls:inspectKeyPackage", keyPackage),
+    inspectGroupInfo: (groupInfo) => ipcRenderer.invoke("bridge:mls:inspectGroupInfo", groupInfo),
+    createGroup: (scope, state, groupId) =>
+      ipcRenderer.invoke("bridge:mls:createGroup", scope, state, groupId),
+    addMembers: (scope, state, groupId, keyPackages) =>
+      ipcRenderer.invoke("bridge:mls:addMembers", scope, state, groupId, keyPackages),
+    joinFromWelcome: (scope, state, welcome) =>
+      ipcRenderer.invoke("bridge:mls:joinFromWelcome", scope, state, welcome),
+    joinExternal: (scope, state, groupInfo) =>
+      ipcRenderer.invoke("bridge:mls:joinExternal", scope, state, groupInfo),
+    removeMember: (scope, state, groupId, leafIndex) =>
+      ipcRenderer.invoke("bridge:mls:removeMember", scope, state, groupId, leafIndex),
+    stageIncomingCommit: (scope, state, groupId, commit) =>
+      ipcRenderer.invoke("bridge:mls:stageIncomingCommit", scope, state, groupId, commit),
+    merge: (stagedId) => ipcRenderer.invoke("bridge:mls:merge", stagedId),
+    discard: (stagedId) => ipcRenderer.invoke("bridge:mls:discard", stagedId),
+    encrypt: (scope, state, groupId, data) =>
+      ipcRenderer.invoke("bridge:mls:encrypt", scope, state, groupId, data),
+    decrypt: (scope, state, groupId, message) =>
+      ipcRenderer.invoke("bridge:mls:decrypt", scope, state, groupId, message),
+    signKeyPackageUpload: (scope, upload) =>
+      ipcRenderer.invoke("bridge:mls:signKeyPackageUpload", scope, upload),
+    signRevocation: (scope, revocation) =>
+      ipcRenderer.invoke("bridge:mls:signRevocation", scope, revocation),
   },
   config: {
     get: () => ipcRenderer.invoke("bridge:config:get"),

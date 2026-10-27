@@ -10,6 +10,9 @@ directories:
 files:
   - app/**
   - assets/**
+  - mls-engine/pkg/*.js
+  - mls-engine/pkg/*.wasm
+  - mls-engine/pkg/snippets/**
   - package.json
   - "!app/renderer/**/*.map"
 

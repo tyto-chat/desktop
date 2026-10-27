@@ -1,5 +1,6 @@
 import { parseWindowTheme, type WindowTheme } from "./windowChrome";
 import { isLanguageList } from "./spellCheck";
+import { DEVICE_KEY_SECRET_PREFIX } from "./mls";
 import type {
   BridgeBadgeState,
   BridgeSnoozeState,
@@ -81,6 +82,12 @@ function requireText(value: unknown, maxLength: number, allowEmpty = true): stri
   return value;
 }
 
+function requireSecretKey(value: unknown): string {
+  const key = requireText(value, MAX_KEY_LENGTH, false);
+  if (key.startsWith(DEVICE_KEY_SECRET_PREFIX)) throw new Error("invalid bridge argument");
+  return key;
+}
+
 function parseNotification(value: unknown): BridgeNotification | null {
   if (value === null || typeof value !== "object") return null;
   const { title, body, tag, payload } = value as Record<string, unknown>;
@@ -145,18 +152,11 @@ export function registerBridgeIpc(ipc: IpcRegistrar, deps: BridgeIpcDeps): void 
     });
   };
 
-  handle(BRIDGE_CHANNELS.secretsGet, (key) =>
-    deps.secrets.get(requireText(key, MAX_KEY_LENGTH, false)),
-  );
+  handle(BRIDGE_CHANNELS.secretsGet, (key) => deps.secrets.get(requireSecretKey(key)));
   handle(BRIDGE_CHANNELS.secretsSet, (key, value) =>
-    deps.secrets.set(
-      requireText(key, MAX_KEY_LENGTH, false),
-      requireText(value, MAX_SECRET_LENGTH),
-    ),
+    deps.secrets.set(requireSecretKey(key), requireText(value, MAX_SECRET_LENGTH)),
   );
-  handle(BRIDGE_CHANNELS.secretsDelete, (key) =>
-    deps.secrets.delete(requireText(key, MAX_KEY_LENGTH, false)),
-  );
+  handle(BRIDGE_CHANNELS.secretsDelete, (key) => deps.secrets.delete(requireSecretKey(key)));
   handle(BRIDGE_CHANNELS.configGet, () => deps.config.get());
   handle(BRIDGE_CHANNELS.configSet, (json) =>
     deps.config.set(requireText(json, MAX_CONFIG_LENGTH)),

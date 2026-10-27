@@ -6,6 +6,8 @@ import { DeepLinkQueue, notificationEnvelope, urlEnvelope } from "./deepLinks";
 import { rearmQueueOnNavigation, wireDeepLinks } from "./deepLinkWiring";
 import { createKeychainErrorWindow } from "./errorWindow";
 import { registerBridgeIpc, RENDERER_CHANNELS } from "./ipc";
+import { deviceStateDirectory, loadMlsWasm, MlsHost } from "./mls";
+import { registerMlsIpc } from "./mlsIpc";
 import { setLinuxAutostart } from "./linuxAutostart";
 import { installMediaAuth } from "./mediaAuth";
 import { originOf } from "./navigationPolicy";
@@ -95,9 +97,16 @@ function startApp(): void {
     save: (languages) => shellSettings.saveSpellCheckLanguages(languages),
   });
 
+  const secrets = new SecretStore(userData, safeStorage);
+  const isTrustedSender = (event: unknown) => senderOrigin(event) === appOrigin;
+  registerMlsIpc(ipcMain, {
+    isTrustedSender,
+    host: new MlsHost(loadMlsWasm(), secrets, deviceStateDirectory(join(userData, "e2ee"))),
+  });
+
   registerBridgeIpc(ipcMain, {
-    isTrustedSender: (event) => senderOrigin(event) === appOrigin,
-    secrets: new SecretStore(userData, safeStorage),
+    isTrustedSender,
+    secrets,
     config: new ConfigStore(userData),
     getVersion: () => app.getVersion(),
     setAutoLaunch,
