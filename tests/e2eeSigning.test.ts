@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { keyPackageUploadPayload, revocationPayload } from "../src/main/e2eeSigning";
+import {
+  deviceCredentialPayload,
+  keyPackageUploadPayload,
+  revocationPayload,
+} from "../src/main/e2eeSigning";
 
 const hex = (bytes: Uint8Array) => Buffer.from(bytes).toString("hex");
 
@@ -39,6 +43,26 @@ describe("e2ee signed payloads", () => {
 
     expect(hex(payload)).toBe(
       "a4686465766963654964782430623365366531632d326634332d346135392d396436652d346331663561376238633964697265766f6b656441741a6b49d27b6a67656e65726174696f6e026e7369676e65724465766963654964782435643163326233612d346535662d346136622d386337642d396530663161326233633464",
+    );
+  });
+
+  it("encodes a device credential exactly like the server", () => {
+    const payload = deviceCredentialPayload({
+      server: "https://chat.example",
+      accountId: 7,
+      deviceId: "0b8f6f3e-6c1e-4a59-9a3d-2f0f5b8c1d2e",
+      generation: 1,
+      devicePublicKey: new Uint8Array(32).fill(0xaa),
+    });
+
+    expect(hex(payload)).toBe(
+      "a5667365727665727468747470733a2f2f636861742e6578616d706c65" +
+        "6864657669636549647824" +
+        Buffer.from("0b8f6f3e-6c1e-4a59-9a3d-2f0f5b8c1d2e").toString("hex") +
+        "696163636f756e74496407" +
+        "6a67656e65726174696f6e01" +
+        "6f6465766963655075626c69634b65795820" +
+        "aa".repeat(32),
     );
   });
 

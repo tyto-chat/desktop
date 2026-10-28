@@ -7,11 +7,31 @@ import {
   type DeviceStateFiles,
   type E2eeScope,
 } from "../src/main/mls";
-import { keyPackageUploadPayload, revocationPayload } from "../src/main/e2eeSigning";
+import {
+  deviceCredentialPayload,
+  keyPackageUploadPayload,
+  revocationPayload,
+} from "../src/main/e2eeSigning";
 import type { BridgeMlsCredential } from "../src/shared/bridge";
 
 const SERVER = "https://chat.example.org";
 const wasm = loadMlsWasm();
+
+function take<T extends { free(): void }, R>(value: T, read: (value: T) => R): R {
+  try {
+    return read(value);
+  } finally {
+    value.free();
+  }
+}
+
+function ed25519(publicKey: Uint8Array) {
+  return createPublicKey({
+    key: Buffer.concat([Buffer.from("302a300506032b6570032100", "hex"), Buffer.from(publicKey)]),
+    format: "der",
+    type: "spki",
+  });
+}
 
 class MemorySecrets {
   readonly values = new Map<string, string>();
@@ -759,5 +779,47 @@ describe("MlsHost with the real engine", () => {
 
     expect(verify(null, keyPackageUploadPayload(upload), publicKey, uploadSignature)).toBe(true);
     expect(verify(null, revocationPayload(revocation), publicKey, revocationSignature)).toBe(true);
+  });
+
+  it("signs a credential for its own device key with the account key", async () => {
+    const scope = { serverOrigin: SERVER, serverUserId: 6, profileId: "p-own" };
+    const { devicePublicKey } = await host.createDeviceKey(scope);
+    const account = take(wasm.generateSignatureKeyPair(), (p) => ({
+      secret: p.secret,
+      publicKey: p.public,
+    }));
+    const fields = {
+      server: SERVER,
+      accountId: 6,
+      deviceId: "f0000000-0000-4000-8000-000000000006",
+      generation: 2,
+    };
+
+    const credential = await host.signOwnDeviceCredential(scope, account.secret, fields);
+
+    expect(credential).toMatchObject({ ...fields, devicePublicKey });
+    expect(
+      verify(
+        null,
+        deviceCredentialPayload({ ...fields, devicePublicKey }),
+        ed25519(account.publicKey),
+        credential.signature,
+      ),
+    ).toBe(true);
+    await expect(host.generateDevice(scope, credential)).resolves.toHaveProperty("state");
+  });
+
+  it("refuses to sign a device credential without its own device key", async () => {
+    const scope = { serverOrigin: SERVER, serverUserId: 7, profileId: "p-none" };
+    const account = take(wasm.generateSignatureKeyPair(), (p) => p.secret);
+
+    await expect(
+      host.signOwnDeviceCredential(scope, account, {
+        server: SERVER,
+        accountId: 7,
+        deviceId: "f0000000-0000-4000-8000-000000000007",
+        generation: 1,
+      }),
+    ).rejects.toThrow("no device key");
   });
 });

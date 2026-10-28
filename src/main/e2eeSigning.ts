@@ -15,6 +15,14 @@ export interface KeyPackageUpload {
   lastResortReplaces?: Uint8Array;
 }
 
+export interface DeviceCredentialFields {
+  server: string;
+  accountId: number;
+  deviceId: string;
+  generation: number;
+  devicePublicKey: Uint8Array;
+}
+
 export interface Revocation {
   deviceId: string;
   generation: number;
@@ -93,5 +101,15 @@ export function revocationPayload(revocation: Revocation): Uint8Array {
     generation: revocation.generation,
     revokedAt: revocation.revokedAt,
     signerDeviceId: revocation.signerDeviceId,
+  });
+}
+
+export function deviceCredentialPayload(fields: DeviceCredentialFields): Uint8Array {
+  return encodeCanonicalMap({
+    server: fields.server,
+    accountId: fields.accountId,
+    deviceId: fields.deviceId,
+    generation: fields.generation,
+    devicePublicKey: fields.devicePublicKey,
   });
 }

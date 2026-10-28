@@ -2,7 +2,12 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes, randomUUID }
 import { join } from "node:path";
 import { readTextIfPresent, SerialQueue, writeTextAtomically } from "./atomicFile";
 import { readdir, rm } from "node:fs/promises";
-import { keyPackageUploadPayload, revocationPayload } from "./e2eeSigning";
+import {
+  deviceCredentialPayload,
+  keyPackageUploadPayload,
+  revocationPayload,
+  type DeviceCredentialFields,
+} from "./e2eeSigning";
 import type {
   BridgeE2eeScope,
   BridgeKeyPackageUpload,
@@ -622,6 +627,22 @@ export class MlsHost {
   signRevocation(scope: E2eeScope, revocation: BridgeRevocation): Promise<Uint8Array> {
     const payload = revocationPayload(revocation);
     return this.withKeys(scope, ({ signer }) => this.wasm.signDetached(signer, payload));
+  }
+
+  signOwnDeviceCredential(
+    scope: E2eeScope,
+    accountSecret: Uint8Array,
+    fields: Omit<DeviceCredentialFields, "devicePublicKey">,
+  ): Promise<BridgeMlsCredential> {
+    return this.withKeys(scope, ({ signer }) => {
+      const devicePublicKey = this.wasm.publicKeyOf(signer);
+      const payload = deviceCredentialPayload({ ...fields, devicePublicKey });
+      return {
+        ...fields,
+        devicePublicKey,
+        signature: this.wasm.signDetached(accountSecret, payload),
+      };
+    });
   }
 
   private toWasmCredential(input: BridgeMlsCredential): WasmCredential {
