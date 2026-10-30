@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   deviceCredentialPayload,
   keyPackageUploadPayload,
+  leaveRequestPayload,
   revocationPayload,
 } from "../src/main/e2eeSigning";
 
@@ -43,6 +44,19 @@ describe("e2ee signed payloads", () => {
 
     expect(hex(payload)).toBe(
       "a4686465766963654964782430623365366531632d326634332d346135392d396436652d346331663561376238633964697265766f6b656441741a6b49d27b6a67656e65726174696f6e026e7369676e65724465766963654964782435643163326233612d346535662d346136622d386337642d396530663161326233633464",
+    );
+  });
+
+  it("encodes a leave request exactly like the server", () => {
+    const payload = leaveRequestPayload({
+      deviceId: "0b3e6e1c-2f43-4a59-9d6e-4c1f5a7b8c9d",
+      generation: 2,
+      requestedAt: 1_800_000_123,
+      leaveRequestId: "5d1c2b3a-4e5f-4a6b-8c7d-9e0f1a2b3c4d",
+    });
+
+    expect(hex(payload)).toBe(
+      "a4686465766963654964782430623365366531632d326634332d346135392d396436652d3463316635613762386339646a67656e65726174696f6e026b72657175657374656441741a6b49d27b6e6c65617665526571756573744964782435643163326233612d346535662d346136622d386337642d396530663161326233633464",
     );
   });
 

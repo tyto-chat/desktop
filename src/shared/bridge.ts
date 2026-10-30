@@ -118,6 +118,13 @@ export interface BridgeKeyPackageUpload {
   lastResortReplaces?: Uint8Array;
 }
 
+export interface BridgeLeaveRequest {
+  deviceId: string;
+  generation: number;
+  requestedAt: number;
+  leaveRequestId: string;
+}
+
 export interface BridgeRevocation {
   deviceId: string;
   generation: number;
@@ -195,6 +202,7 @@ export interface BridgeMls {
   acknowledgeDecrypt(scope: BridgeE2eeScope, receipt: string): Promise<void>;
   signKeyPackageUpload(scope: BridgeE2eeScope, upload: BridgeKeyPackageUpload): Promise<Uint8Array>;
   signRevocation(scope: BridgeE2eeScope, revocation: BridgeRevocation): Promise<Uint8Array>;
+  signLeaveRequest(scope: BridgeE2eeScope, request: BridgeLeaveRequest): Promise<Uint8Array>;
 }
 
 export interface PlatformBridge {

@@ -30,6 +30,13 @@ export interface Revocation {
   signerDeviceId: string;
 }
 
+export interface LeaveRequest {
+  deviceId: string;
+  generation: number;
+  requestedAt: number;
+  leaveRequestId: string;
+}
+
 function head(major: number, length: number): Buffer {
   if (!Number.isSafeInteger(length) || length < 0)
     throw new Error("CBOR values must be non-negative integers");
@@ -101,6 +108,15 @@ export function revocationPayload(revocation: Revocation): Uint8Array {
     generation: revocation.generation,
     revokedAt: revocation.revokedAt,
     signerDeviceId: revocation.signerDeviceId,
+  });
+}
+
+export function leaveRequestPayload(request: LeaveRequest): Uint8Array {
+  return encodeCanonicalMap({
+    deviceId: request.deviceId,
+    generation: request.generation,
+    requestedAt: request.requestedAt,
+    leaveRequestId: request.leaveRequestId,
   });
 }
 

@@ -4,6 +4,7 @@ import type {
   BridgeE2eeScope,
   BridgeKeyPackageUpload,
   BridgeMlsCredential,
+  BridgeLeaveRequest,
   BridgeRevocation,
   BridgeUploadPackage,
 } from "../shared/bridge";
@@ -30,6 +31,7 @@ export const MLS_CHANNELS = {
   acknowledgeDecrypt: "bridge:mls:acknowledgeDecrypt",
   signKeyPackageUpload: "bridge:mls:signKeyPackageUpload",
   signRevocation: "bridge:mls:signRevocation",
+  signLeaveRequest: "bridge:mls:signLeaveRequest",
 } as const;
 
 export interface MlsIpcDeps {
@@ -124,6 +126,16 @@ function revocation(value: unknown): BridgeRevocation {
   };
 }
 
+function leaveRequest(value: unknown): BridgeLeaveRequest {
+  const r = record(value);
+  return {
+    deviceId: text(r.deviceId),
+    generation: whole(r.generation, 1),
+    requestedAt: whole(r.requestedAt),
+    leaveRequestId: text(r.leaveRequestId),
+  };
+}
+
 function keyPackages(value: unknown): Uint8Array[] {
   if (!Array.isArray(value) || value.length > MAX_MEMBERS_PER_CALL) invalid();
   return value.map((p) => bytes(p, MAX_KEY_PACKAGE_BYTES));
@@ -195,4 +207,5 @@ export function registerMlsIpc(ipc: IpcRegistrar, deps: MlsIpcDeps): void {
     host.signKeyPackageUpload(scope(s), upload(u)),
   );
   handle(MLS_CHANNELS.signRevocation, (s, r) => host.signRevocation(scope(s), revocation(r)));
+  handle(MLS_CHANNELS.signLeaveRequest, (s, r) => host.signLeaveRequest(scope(s), leaveRequest(r)));
 }

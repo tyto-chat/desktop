@@ -5,6 +5,7 @@ import { readdir, rm } from "node:fs/promises";
 import {
   deviceCredentialPayload,
   keyPackageUploadPayload,
+  leaveRequestPayload,
   revocationPayload,
   type DeviceCredentialFields,
 } from "./e2eeSigning";
@@ -14,6 +15,7 @@ import type {
   BridgeMlsCredential,
   BridgeMlsMember,
   BridgeMlsStaged,
+  BridgeLeaveRequest,
   BridgeRevocation,
 } from "../shared/bridge";
 
@@ -626,6 +628,11 @@ export class MlsHost {
 
   signRevocation(scope: E2eeScope, revocation: BridgeRevocation): Promise<Uint8Array> {
     const payload = revocationPayload(revocation);
+    return this.withKeys(scope, ({ signer }) => this.wasm.signDetached(signer, payload));
+  }
+
+  signLeaveRequest(scope: E2eeScope, request: BridgeLeaveRequest): Promise<Uint8Array> {
+    const payload = leaveRequestPayload(request);
     return this.withKeys(scope, ({ signer }) => this.wasm.signDetached(signer, payload));
   }
 

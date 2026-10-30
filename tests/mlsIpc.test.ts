@@ -163,6 +163,14 @@ describe("registerMlsIpc", () => {
         signerDeviceId: "s",
       }),
     ).rejects.toThrow("invalid bridge argument");
+    await expect(
+      call(MLS_CHANNELS.signLeaveRequest, scope(1), {
+        deviceId: "d",
+        generation: 1,
+        requestedAt: 1,
+        leaveRequestId: 7,
+      }),
+    ).rejects.toThrow("invalid bridge argument");
   });
 
   it("never returns the device signing key", async () => {

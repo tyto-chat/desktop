@@ -10,7 +10,7 @@ function subscribe<T>(channel: string, handler: (value: T) => void): () => void 
 }
 
 const bridge: PlatformBridge = {
-  bridgeVersion: 3,
+  bridgeVersion: 4,
   secrets: {
     get: (key) => ipcRenderer.invoke("bridge:secrets:get", key),
     set: (key, value) => ipcRenderer.invoke("bridge:secrets:set", key, value),
@@ -52,6 +52,8 @@ const bridge: PlatformBridge = {
       ipcRenderer.invoke("bridge:mls:signKeyPackageUpload", scope, upload),
     signRevocation: (scope, revocation) =>
       ipcRenderer.invoke("bridge:mls:signRevocation", scope, revocation),
+    signLeaveRequest: (scope, request) =>
+      ipcRenderer.invoke("bridge:mls:signLeaveRequest", scope, request),
   },
   config: {
     get: () => ipcRenderer.invoke("bridge:config:get"),

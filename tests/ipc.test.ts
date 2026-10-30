@@ -326,7 +326,7 @@ describe("preload", () => {
     expect(source).not.toMatch(/\brequire\(/);
   });
 
-  it("declares bridge version 3", () => {
-    expect(source).toMatch(/bridgeVersion:\s*3\b/);
+  it("declares bridge version 4", () => {
+    expect(source).toMatch(/bridgeVersion:\s*4\b/);
   });
 });

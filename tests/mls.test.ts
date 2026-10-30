@@ -10,6 +10,7 @@ import {
 import {
   deviceCredentialPayload,
   keyPackageUploadPayload,
+  leaveRequestPayload,
   revocationPayload,
 } from "../src/main/e2eeSigning";
 import type { BridgeMlsCredential } from "../src/shared/bridge";
@@ -242,6 +243,29 @@ describe("MlsHost with the real engine", () => {
       alice.credential.deviceId,
     ]);
     await expect(host.encrypt(bob.scope, bob.state, "conv-1", Uint8Array.of(1))).rejects.toThrow();
+  });
+
+  it("leaves a removed device unable to read anything sent after its removal", async () => {
+    const { alice, bob } = await conversation();
+    const removal = await host.removeMember(alice.scope, alice.state, "conv-1", 1);
+    alice.state = (await host.merge(removal.id)).state;
+    const bobStage = await host.stageIncomingCommit(
+      bob.scope,
+      bob.state,
+      "conv-1",
+      removal.commit!,
+    );
+    bob.state = (await host.merge(bobStage.id)).state;
+
+    const after = await host.encrypt(
+      alice.scope,
+      alice.state,
+      "conv-1",
+      new TextEncoder().encode("after removal"),
+    );
+    alice.state = after.state;
+
+    await expect(host.decrypt(bob.scope, bob.state, "conv-1", after.message)).rejects.toThrow();
   });
 
   it("leaves accepted state unchanged when a stage is discarded", async () => {
@@ -774,11 +798,20 @@ describe("MlsHost with the real engine", () => {
       type: "spki",
     });
 
+    const leave = {
+      deviceId: d.credential.deviceId,
+      generation: 1,
+      requestedAt: 1_800_000_000,
+      leaveRequestId: "f0000000-0000-4000-8000-000000000006",
+    };
+
     const uploadSignature = await host.signKeyPackageUpload(d.scope, upload);
     const revocationSignature = await host.signRevocation(d.scope, revocation);
+    const leaveSignature = await host.signLeaveRequest(d.scope, leave);
 
     expect(verify(null, keyPackageUploadPayload(upload), publicKey, uploadSignature)).toBe(true);
     expect(verify(null, revocationPayload(revocation), publicKey, revocationSignature)).toBe(true);
+    expect(verify(null, leaveRequestPayload(leave), publicKey, leaveSignature)).toBe(true);
   });
 
   it("signs a credential for its own device key with the account key", async () => {
